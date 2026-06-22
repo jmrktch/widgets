@@ -6,7 +6,7 @@
   "main": "api.js",
   "scripts": {
     "dev": "node scripts/dev-split.js",
-    "start": "node api.js",
+    "start": "node scripts/dev-split.js",
     "start:all": "node scripts/dev-split.js",
     "collector": "node collector.js",
     "api": "node api.js",
