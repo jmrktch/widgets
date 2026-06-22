@@ -1,0 +1,23 @@
+{
+  "name": "marketech-focus-quote-widget-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Disposable localhost MVP for delayed ASX quote snapshots via Marketech Focus candles endpoint.",
+  "main": "api.js",
+  "scripts": {
+    "dev": "node scripts/dev-split.js",
+    "start": "node api.js",
+    "start:all": "node scripts/dev-split.js",
+    "collector": "node collector.js",
+    "api": "node api.js",
+    "auth:refresh-cookie": "node scripts/refresh-cookie.js",
+    "dev:with-auth": "node scripts/dev-with-auth.js",
+    "partner-host": "node scripts/partner-host.js",
+    "probe:chart-requests": "node scripts/probe-chart-requests.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "playwright": "^1.54.2"
+  }
+}

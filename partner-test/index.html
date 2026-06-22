@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Partner Embed Test Host</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        background: #f3f2ee;
+        color: #212121;
+      }
+      .wrap {
+        max-width: 960px;
+        margin: 40px auto;
+        padding: 0 20px;
+      }
+      .panel {
+        background: #fffdf8;
+        border: 1px solid #e7dcc9;
+        padding: 20px;
+        border-radius: 8px;
+      }
+      h1 { margin: 0 0 10px; }
+      p { margin: 0 0 14px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="panel">
+        <h1>Local Partner Site Test</h1>
+        <p>This simulates a separate media partner website on another localhost port.</p>
+
+        <div id="mt-quote-widget"></div>
+<div>
+
+<div id="mt-ticker-widget"></div>
+<div id="mt-ticker-widget"></div>
+<script
+  src="http://localhost:3000/widget.js"
+  data-widget="ticker"
+  data-symbol="ASX:CBA"
+  data-width="100%"
+  data-container-id="mt-ticker-widget"
+  async></script>
+  <div id="mt-watchlist-widget"></div>
+<script
+  src="http://localhost:3000/widget.js"
+  data-widget="watchlist"
+  data-symbols="CSL,CBA,A200,TLS,WES,RIO,FMG"
+  data-width="100%"
+  data-container-id="mt-watchlist-widget"
+  async></script>
+  <div id="mt-chart-widget"></div>
+<script
+  src="http://localhost:3000/widget.js"
+  data-widget="chart"
+  data-symbol="ASX:CBA"
+  data-width="100%"
+  data-interval="day"
+  data-container-id="mt-chart-widget"
+  async></script>
+
+</div>
+<div id="mt-quote-widget"></div>
+<div id="mt-quote-widget"></div>
+<div id="mt-quote-widget"></div>
+
+      </div>
+
+      <div>
+
+      </div>
+    </div>
+  </body>
+</html>
