@@ -16,7 +16,7 @@ const {
   readSymbols,
   readSymbolMeta
 } = require("./lib/store");
-const { fetchQuoteForSymbol } = require("./lib/focus-client");
+const { fetchQuoteForSymbol, getCookieDiagnostics } = require("./lib/focus-client");
 
 validateEnv();
 
@@ -172,7 +172,10 @@ app.get("/internal/status", (req, res) => {
       tracked: readSymbols().length,
       metaEntries: Object.keys(readSymbolMeta()).length
     },
-    collector: collectorStatus
+    collector: collectorStatus,
+    diagnostics: {
+      cookie: getCookieDiagnostics()
+    }
   });
 });
 
