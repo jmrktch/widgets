@@ -11,6 +11,8 @@ const LOGIN_URL = process.env.FOCUS_LOGIN_URL || "https://focus.marketech.com.au
 const API_HOST = "api.marketech.com.au";
 let activeRefreshPromise = null;
 
+console.log("[refresh-cookie] build 2026-06-23 hardened login v4");
+
 function readEnvFile() {
   if (!fs.existsSync(ENV_PATH)) return {};
   return dotenv.parse(fs.readFileSync(ENV_PATH, "utf8"));
