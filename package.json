@@ -13,6 +13,7 @@
     "collector": "node collector.js",
     "api": "node api.js",
     "auth:refresh-cookie": "node scripts/refresh-cookie.js",
+    "job:refresh-cookie": "node scripts/refresh-cookie-job.js",
     "dev:with-auth": "node scripts/dev-with-auth.js",
     "partner-host": "node scripts/partner-host.js",
     "probe:chart-requests": "node scripts/probe-chart-requests.js"

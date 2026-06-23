@@ -24,6 +24,7 @@ if (!INFO_LOGS_ENABLED) {
 
 const QUOTE_REFRESH_INTERVAL_MS = getEnvNumber("QUOTE_REFRESH_INTERVAL_MS");
 const COOKIE_REFRESH_INTERVAL_MS = getEnvNumber("COOKIE_REFRESH_INTERVAL_MS");
+const COOKIE_REFRESH_ENABLED = getEnvBoolean("COOKIE_REFRESH_ENABLED");
 const AUTH_REFRESH_RETRY_COUNT = getEnvNumber("AUTH_REFRESH_RETRY_COUNT");
 const AUTH_REFRESH_RETRY_DELAY_MS = getEnvNumber("AUTH_REFRESH_RETRY_DELAY_MS");
 const QUOTE_BATCH_SIZE = getEnvNumber("QUOTE_BATCH_SIZE");
@@ -617,6 +618,12 @@ function isAuthError(error) {
 }
 
 async function refreshCookieWithRetry(reason = "scheduled-refresh") {
+  if (!COOKIE_REFRESH_ENABLED) {
+    const error = new Error("Cookie refresh is disabled.");
+    error.isRefreshDisabled = true;
+    throw error;
+  }
+
   let lastError = null;
 
   for (let attempt = 1; attempt <= AUTH_REFRESH_RETRY_COUNT; attempt += 1) {
@@ -1827,7 +1834,11 @@ async function startCollector() {
   console.log("[collector] starting");
   console.log(`[collector] collector mode ${COLLECTOR_MODE}`);
   console.log(`[collector] quote refresh every ${QUOTE_REFRESH_INTERVAL_MS}ms (batch size ${QUOTE_BATCH_SIZE}, pause ${QUOTE_BATCH_PAUSE_MS}ms)`);
-  console.log(`[collector] cookie refresh every ${COOKIE_REFRESH_INTERVAL_MS}ms`);
+  if (COOKIE_REFRESH_ENABLED) {
+    console.log(`[collector] cookie refresh every ${COOKIE_REFRESH_INTERVAL_MS}ms`);
+  } else {
+    console.log("[collector] cookie refresh disabled; expecting external runtime cookie updates");
+  }
   if (CHART_COLLECTION_ENABLED) {
     console.log(`[collector] chart refresh configured for ${CHART_INTERVAL_KEYS.join(", ")} (batch size ${CHART_BATCH_SIZE}, pause ${CHART_BATCH_PAUSE_MS}ms)`);
     if (MINUTE_CHART_SYMBOLS.length > 0) {
@@ -1847,7 +1858,9 @@ async function startCollector() {
     console.log(`[collector] staged scheduler enabled (${COLLECTOR_MARKET_STAGE_ORDER.join(" > ")})`);
   }
 
-  await refreshCookieOnce();
+  if (COOKIE_REFRESH_ENABLED) {
+    await refreshCookieOnce();
+  }
 
   if (SYMBOL_SYNC_ENABLED && SYMBOL_SYNC_ON_STARTUP) {
     console.log("[collector] startup symbol sync enabled");
@@ -1862,9 +1875,11 @@ async function startCollector() {
     console.log("[collector] startup chart preload complete");
   }
 
-  setInterval(() => {
-    refreshCookieOnce();
-  }, COOKIE_REFRESH_INTERVAL_MS);
+  if (COOKIE_REFRESH_ENABLED) {
+    setInterval(() => {
+      refreshCookieOnce();
+    }, COOKIE_REFRESH_INTERVAL_MS);
+  }
 
   if (SYMBOL_SYNC_ENABLED) {
     scheduleNextSymbolSync();

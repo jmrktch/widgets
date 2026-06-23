@@ -2,7 +2,8 @@ require("dotenv").config();
 
 const express = require("express");
 const path = require("path");
-const { getEnvBoolean, getEnvNumber, validateEnv } = require("./lib/env");
+const fs = require("fs");
+const { getEnvBoolean, getEnvNumber, getEnvString, validateEnv } = require("./lib/env");
 const {
   ensureSeedFiles,
   getQuote,
@@ -24,10 +25,12 @@ const app = express();
 const PORT = getEnvNumber("PORT");
 const CHART_CACHE_TTL_MS = getEnvNumber("CHART_CACHE_TTL_MS");
 const PUBLIC_WIDGET_REFRESH_MS = getEnvNumber("PUBLIC_WIDGET_REFRESH_MS");
+const COOKIE_UPDATE_TOKEN = getEnvString("COOKIE_UPDATE_TOKEN").trim();
 const INFO_LOGS_ENABLED = getEnvBoolean("INFO_LOGS_ENABLED");
 const CHART_DEBUG_LOGS = ["1", "true", "yes", "on"].includes(
   String(process.env.CHART_DEBUG_LOGS || "").trim().toLowerCase()
 );
+const RUNTIME_COOKIE_PATH = path.join(__dirname, "data", "runtime-cookie.json");
 
 if (!INFO_LOGS_ENABLED) {
   console.log = () => {};
@@ -68,6 +71,31 @@ function sendValidationError(res) {
   return res.status(400).json({
     error: "Invalid symbol. Use A-Z and 0-9 only, max 10 characters."
   });
+}
+
+function getCookieUpdateSecret(req) {
+  const authHeader = String(req.headers.authorization || "").trim();
+  if (authHeader.toLowerCase().startsWith("bearer ")) {
+    return authHeader.slice(7).trim();
+  }
+  return String(req.headers["x-cookie-update-token"] || "").trim();
+}
+
+function writeRuntimeCookie(cookie, source = "internal-api") {
+  fs.mkdirSync(path.dirname(RUNTIME_COOKIE_PATH), { recursive: true });
+  fs.writeFileSync(
+    RUNTIME_COOKIE_PATH,
+    JSON.stringify(
+      {
+        cookie,
+        source,
+        updatedAt: new Date().toISOString()
+      },
+      null,
+      2
+    ) + "\n",
+    "utf8"
+  );
 }
 
 function normalizeChartInterval(rawValue) {
@@ -158,6 +186,38 @@ app.get("/api/search", (req, res) => {
   return res.json({
     query: q,
     results: searchSymbols(q, limit)
+  });
+});
+
+app.post("/internal/runtime-cookie", (req, res) => {
+  if (!COOKIE_UPDATE_TOKEN) {
+    return res.status(503).json({
+      error: "COOKIE_UPDATE_TOKEN is not configured on this service."
+    });
+  }
+
+  const secret = getCookieUpdateSecret(req);
+  if (!secret || secret !== COOKIE_UPDATE_TOKEN) {
+    return res.status(401).json({
+      error: "Unauthorized cookie update request."
+    });
+  }
+
+  const cookie = String(req.body?.cookie || "").trim();
+  if (!cookie || !cookie.includes("at=")) {
+    return res.status(400).json({
+      error: "Cookie payload must include a valid auth cookie string."
+    });
+  }
+
+  const source = String(req.body?.source || "internal-api").trim() || "internal-api";
+  writeRuntimeCookie(cookie, source);
+  return res.json({
+    ok: true,
+    source,
+    diagnostics: {
+      cookie: getCookieDiagnostics()
+    }
   });
 });
 
