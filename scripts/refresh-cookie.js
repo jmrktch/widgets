@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const dotenv = require("dotenv");
+process.env.PLAYWRIGHT_BROWSERS_PATH = process.env.PLAYWRIGHT_BROWSERS_PATH || "0";
 const { chromium } = require("playwright");
 
 const ENV_PATH = path.join(__dirname, "..", ".env");

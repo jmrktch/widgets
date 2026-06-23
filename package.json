@@ -8,6 +8,7 @@
     "dev": "node scripts/dev-split.js",
     "start": "node scripts/dev-split.js",
     "start:all": "node scripts/dev-split.js",
+    "heroku-postbuild": "PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium",
     "collector": "node collector.js",
     "api": "node api.js",
     "auth:refresh-cookie": "node scripts/refresh-cookie.js",
