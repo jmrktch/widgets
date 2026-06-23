@@ -1,0 +1,46 @@
+name: Refresh Marketech Cookie
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"
+
+concurrency:
+  group: refresh-cookie
+  cancel-in-progress: false
+
+jobs:
+  refresh-cookie:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        env:
+          CI: true
+        run: npm ci
+
+      - name: Install Playwright system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Refresh cookie and push to service
+        env:
+          CI: true
+          FOCUS_EMAIL: ${{ secrets.FOCUS_EMAIL }}
+          FOCUS_PASSWORD: ${{ secrets.FOCUS_PASSWORD }}
+          FOCUS_LOGIN_URL: https://focus.marketech.com.au/#/login
+          PLAYWRIGHT_BROWSERS_PATH: 0
+          COOKIE_UPDATE_URL: ${{ secrets.COOKIE_UPDATE_URL }}
+          COOKIE_UPDATE_TOKEN: ${{ secrets.COOKIE_UPDATE_TOKEN }}
+          COOKIE_UPDATE_SOURCE: github-actions
+          MARKETECH_API_BASE: https://api.marketech.com.au
+          INFO_LOGS_ENABLED: true
+        run: npm run job:refresh-cookie
