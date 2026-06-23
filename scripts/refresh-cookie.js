@@ -6,9 +6,12 @@ const { chromium } = require("playwright");
 
 const ENV_PATH = path.join(__dirname, "..", ".env");
 const REFRESH_STATE_PATH = path.join(__dirname, "..", "refresh-state.json");
+const RUNTIME_COOKIE_PATH = path.join(__dirname, "..", "data", "runtime-cookie.json");
 const LOGIN_URL = process.env.FOCUS_LOGIN_URL || "https://focus.marketech.com.au/#/login";
 const API_HOST = "api.marketech.com.au";
 let activeRefreshPromise = null;
+
+console.log("[refresh-cookie] build 2026-06-23 hardened login v5");
 
 function readEnvFile() {
   if (!fs.existsSync(ENV_PATH)) return {};
@@ -26,6 +29,26 @@ function upsertEnvValue(fileText, key, value) {
 
 function writeRefreshState(state) {
   fs.writeFileSync(REFRESH_STATE_PATH, JSON.stringify(state, null, 2) + "\n", "utf8");
+}
+
+function ensureRuntimeCookieDir() {
+  fs.mkdirSync(path.dirname(RUNTIME_COOKIE_PATH), { recursive: true });
+}
+
+function writeRuntimeCookie(cookie) {
+  ensureRuntimeCookieDir();
+  fs.writeFileSync(
+    RUNTIME_COOKIE_PATH,
+    JSON.stringify(
+      {
+        cookie: String(cookie || ""),
+        updatedAt: new Date().toISOString()
+      },
+      null,
+      2
+    ) + "\n",
+    "utf8"
+  );
 }
 
 async function waitForAuthCookie(context, timeoutMs = 12_000, pollMs = 250) {
@@ -51,6 +74,60 @@ async function finalizeAuthenticatedSession(page, loginUrl) {
   return waitForAuthCookie(page.context(), 12_000, 250);
 }
 
+function isTimeoutError(error) {
+  return /Timeout/i.test(String(error?.message || ""));
+}
+
+async function logPageSnapshot(page, label) {
+  try {
+    const title = await page.title().catch(() => "");
+    const url = page.url();
+    const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+    const snippet = String(bodyText || "").replace(/\s+/g, " ").trim().slice(0, 240);
+    console.warn(
+      `[refresh-cookie] ${label} snapshot url=${url || "-"} title=${title || "-"} body=${snippet || "-"}`
+    );
+  } catch (error) {
+    console.warn(`[refresh-cookie] ${label} snapshot failed: ${error?.message || "Unknown error"}`);
+  }
+}
+
+async function gotoWithFallback(page, url) {
+  const attempts = [
+    { waitUntil: "domcontentloaded", timeout: 20_000 },
+    { waitUntil: "load", timeout: 20_000 },
+    { waitUntil: "commit", timeout: 15_000 }
+  ];
+
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      console.log(
+        `[refresh-cookie] navigating to ${url} (waitUntil=${attempt.waitUntil}, timeout=${attempt.timeout})`
+      );
+      await page.goto(url, attempt);
+      console.log(
+        `[refresh-cookie] navigation reached ${page.url() || url} via ${attempt.waitUntil}`
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `[refresh-cookie] navigation attempt failed (waitUntil=${attempt.waitUntil}): ${error?.message || "Unknown error"}`
+      );
+      await logPageSnapshot(page, `after-${attempt.waitUntil}-failure`);
+    }
+  }
+
+  const finalUrl = page.url();
+  if (finalUrl && finalUrl !== "about:blank") {
+    console.warn(`[refresh-cookie] proceeding despite navigation failures; current url=${finalUrl}`);
+    return;
+  }
+
+  throw lastError || new Error(`Failed to navigate to ${url}.`);
+}
+
 async function refreshCookie() {
   if (activeRefreshPromise) {
     return activeRefreshPromise;
@@ -69,11 +146,38 @@ async function refreshCookie() {
     startedAt: new Date().toISOString()
   });
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      "--disable-dev-shm-usage",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-gpu",
+      "--no-zygote",
+      "--disable-features=site-per-process"
+    ]
+  });
   try {
+    browser.on("disconnected", () => {
+      console.warn("[refresh-cookie] browser disconnected");
+    });
     const context = await browser.newContext();
     const page = await context.newPage();
-    await page.goto(LOGIN_URL, { waitUntil: "domcontentloaded", timeout: 60000 });
+    page.on("console", (msg) => {
+      const text = msg.text().trim();
+      if (text) {
+        console.log(`[refresh-cookie] browser-console ${text}`);
+      }
+    });
+    page.on("pageerror", (error) => {
+      console.warn(`[refresh-cookie] pageerror ${error?.message || "Unknown error"}`);
+    });
+    page.on("crash", () => {
+      console.warn("[refresh-cookie] page crashed");
+    });
+
+    await gotoWithFallback(page, LOGIN_URL);
+    await logPageSnapshot(page, "post-login-goto");
 
     // If already logged in (existing session), skip form interaction.
     let cookies = await context.cookies("https://api.marketech.com.au", "https://focus.marketech.com.au");
@@ -94,7 +198,17 @@ async function refreshCookie() {
         'input[type="password"], input[name="password"], input[id*="password" i], input[placeholder*="password" i], input[autocomplete="current-password"]'
       ).first();
 
-      await emailInput.waitFor({ state: "visible", timeout: 45000 });
+      try {
+        await emailInput.waitFor({ state: "visible", timeout: 45_000 });
+      } catch (error) {
+        await logPageSnapshot(page, "email-input-timeout");
+        if (isTimeoutError(error)) {
+          throw new Error(
+            `Focus login form did not become visible. Current url=${page.url() || "-"}`
+          );
+        }
+        throw error;
+      }
       await emailInput.fill(email);
       await passwordInput.fill(password);
 
@@ -118,9 +232,12 @@ async function refreshCookie() {
       throw new Error("Did not capture a valid auth cookie header.");
     }
 
-    const existingText = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, "utf8") : "";
-    const nextText = upsertEnvValue(existingText, "MARKETECH_COOKIE", headerValue);
-    fs.writeFileSync(ENV_PATH, nextText, "utf8");
+    writeRuntimeCookie(headerValue);
+    if (fs.existsSync(ENV_PATH)) {
+      const existingText = fs.readFileSync(ENV_PATH, "utf8");
+      const nextText = upsertEnvValue(existingText, "MARKETECH_COOKIE", headerValue);
+      fs.writeFileSync(ENV_PATH, nextText, "utf8");
+    }
     writeRefreshState({
       isRefreshingCookie: false,
       lastRefreshedAt: new Date().toISOString()

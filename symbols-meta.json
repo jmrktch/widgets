@@ -59,7 +59,7 @@
     "name": "Betashares 2031 Fixed Term Corp Bond Active ETF",
     "productType": "Fund"
   },
-  "3DADA": {
+  "3DA": {
     "name": "Amaero Ltd",
     "productType": "Stock"
   },
@@ -475,6 +475,10 @@
     "name": "Aeris Resources Limited",
     "productType": "Stock"
   },
+  "AISN": {
+    "name": "Aeris Resources Limited",
+    "productType": "Stock"
+  },
   "AIV": {
     "name": "Activex Limited",
     "productType": "Stock"
@@ -556,7 +560,7 @@
     "productType": "Stock"
   },
   "ALPH": {
-    "name": "Schroder Global Equity Alpha Fund - Active ETF",
+    "name": "Schroder Global Equity Alpha Fund Active ETF",
     "productType": "Fund"
   },
   "ALQ": {
@@ -568,7 +572,7 @@
     "productType": "Stock"
   },
   "ALTB": {
-    "name": "iShares 15+ Year Australian Government Bond ETF",
+    "name": "Ishares 15+ Year Australian Government Bond ETF",
     "productType": "Fund"
   },
   "ALV": {
@@ -1036,7 +1040,7 @@
     "productType": "Fund"
   },
   "AVR": {
-    "name": "Anteris Technologies Global Corp",
+    "name": "Anteris Technologies Global Corp.",
     "productType": "Stock"
   },
   "AVSV": {
@@ -1428,7 +1432,7 @@
     "productType": "Stock"
   },
   "BNZ": {
-    "name": "Benz Mining Corp",
+    "name": "Benz Mining Corp.",
     "productType": "Stock"
   },
   "BOA": {
@@ -2127,10 +2131,6 @@
     "name": "Core Energy Minerals Ltd",
     "productType": "Stock"
   },
-  "CR9": {
-    "name": "Corella Resources Ltd",
-    "productType": "Stock"
-  },
   "CRB": {
     "name": "Carbine Resources Limited",
     "productType": "Stock"
@@ -2364,7 +2364,7 @@
     "productType": "Fund"
   },
   "DAVA": {
-    "name": "Dimensional Australian Value Trust Active ETF",
+    "name": "Dimensional Australian Value Trust - Active ETF",
     "productType": "Fund"
   },
   "DBBF": {
@@ -2488,7 +2488,7 @@
     "productType": "Stock"
   },
   "DLY": {
-    "name": "Daly Resources Ltd",
+    "name": "Daly Resources Limited",
     "productType": "Stock"
   },
   "DM1": {
@@ -3663,10 +3663,6 @@
     "name": "Genesis Minerals Limited",
     "productType": "Stock"
   },
-  "GMDNE": {
-    "name": "Genesis Minerals Limited",
-    "productType": "Stock"
-  },
   "GMG": {
     "name": "Goodman Group",
     "productType": "Stock"
@@ -4200,7 +4196,7 @@
     "productType": "Fund"
   },
   "IACT": {
-    "name": "Ishares U.S. Factor Rotation Active ETF",
+    "name": "iShares U.S. Factor Rotation Active ETF",
     "productType": "Fund"
   },
   "IAF": {
@@ -4908,7 +4904,7 @@
     "productType": "Stock"
   },
   "KSC": {
-    "name": "K & S Corporation Limited",
+    "name": "K&S Corporation Limited",
     "productType": "Stock"
   },
   "KSL": {
@@ -5245,6 +5241,10 @@
   },
   "M7T": {
     "name": "Mach7 Technologies Limited",
+    "productType": "Stock"
+  },
+  "M96": {
+    "name": "Maverick Minerals Australia Ltd",
     "productType": "Stock"
   },
   "MA1": {
@@ -6056,7 +6056,7 @@
     "productType": "Stock"
   },
   "NVO": {
-    "name": "Novo Resources Corp.",
+    "name": "Novo Resources Corp",
     "productType": "Stock"
   },
   "NVQ": {
@@ -6084,11 +6084,11 @@
     "productType": "Stock"
   },
   "NWS": {
-    "name": "News Corporation..",
+    "name": "News Corporation",
     "productType": "Stock"
   },
   "NWSLV": {
-    "name": "News Corporation..",
+    "name": "News Corporation",
     "productType": "Stock"
   },
   "NX1": {
@@ -6385,6 +6385,10 @@
   },
   "PAC": {
     "name": "Pacific Current Group Limited",
+    "productType": "Stock"
+  },
+  "PAF": {
+    "name": "Pan African Resources PLC",
     "productType": "Stock"
   },
   "PAR": {
@@ -7320,7 +7324,7 @@
     "productType": "Fund"
   },
   "RTG": {
-    "name": "RTG Mining Inc.",
+    "name": "RTG Mining Inc",
     "productType": "Stock"
   },
   "RTH": {
@@ -7728,7 +7732,7 @@
     "productType": "Stock"
   },
   "SNX": {
-    "name": "Sierra Nevada Gold Inc.",
+    "name": "Sierra Nevada Gold Inc",
     "productType": "Stock"
   },
   "SNZ": {
@@ -9460,7 +9464,7 @@
     "productType": "Index"
   },
   "XYZ": {
-    "name": "Block Inc",
+    "name": "Block, Inc.",
     "productType": "Stock"
   },
   "YA20": {
