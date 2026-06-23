@@ -144,8 +144,21 @@ async function refreshCookie() {
     startedAt: new Date().toISOString()
   });
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      "--disable-dev-shm-usage",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-gpu",
+      "--no-zygote",
+      "--disable-features=site-per-process"
+    ]
+  });
   try {
+    browser.on("disconnected", () => {
+      console.warn("[refresh-cookie] browser disconnected");
+    });
     const context = await browser.newContext();
     const page = await context.newPage();
     page.on("console", (msg) => {
@@ -156,6 +169,9 @@ async function refreshCookie() {
     });
     page.on("pageerror", (error) => {
       console.warn(`[refresh-cookie] pageerror ${error?.message || "Unknown error"}`);
+    });
+    page.on("crash", () => {
+      console.warn("[refresh-cookie] page crashed");
     });
 
     await gotoWithFallback(page, LOGIN_URL);
