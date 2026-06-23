@@ -92,6 +92,43 @@ async function logPageSnapshot(page, label) {
   }
 }
 
+async function waitForVisibleLocator(locator, timeoutMs, label) {
+  const startedAt = Date.now();
+  let lastError = null;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      if (await locator.count()) {
+        await locator.first().waitFor({ state: "visible", timeout: 2_000 });
+        return locator.first();
+      }
+    } catch (error) {
+      lastError = error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+
+  throw lastError || new Error(`${label} did not become visible within ${timeoutMs}ms.`);
+}
+
+async function waitForLoginForm(page, timeoutMs = 90_000) {
+  console.log(`[refresh-cookie] waiting for login form (timeout=${timeoutMs})`);
+
+  const emailLocator = page.locator(
+    'input[type="email"], input[name="email"], input[id*="email" i], input[placeholder*="email" i], input[autocomplete="username"]'
+  );
+  const passwordLocator = page.locator(
+    'input[type="password"], input[name="password"], input[id*="password" i], input[placeholder*="password" i], input[autocomplete="current-password"]'
+  );
+
+  const emailInput = await waitForVisibleLocator(emailLocator, timeoutMs, "Email input");
+  const passwordInput = await waitForVisibleLocator(passwordLocator, timeoutMs, "Password input");
+
+  console.log("[refresh-cookie] login form is visible");
+  return { emailInput, passwordInput };
+}
+
 async function gotoWithFallback(page, url) {
   const attempts = [
     { waitUntil: "domcontentloaded", timeout: 20_000 },
@@ -191,34 +228,32 @@ async function refreshCookie() {
         await loginEntryButton.click().catch(() => {});
       }
 
-      const emailInput = page.locator(
-        'input[type="email"], input[name="email"], input[id*="email" i], input[placeholder*="email" i], input[autocomplete="username"]'
-      ).first();
-      const passwordInput = page.locator(
-        'input[type="password"], input[name="password"], input[id*="password" i], input[placeholder*="password" i], input[autocomplete="current-password"]'
-      ).first();
-
       try {
-        await emailInput.waitFor({ state: "visible", timeout: 45_000 });
+        const loginForm = await waitForLoginForm(page, 90_000);
+        const emailInput = loginForm.emailInput;
+        const passwordInput = loginForm.passwordInput;
+        console.log("[refresh-cookie] filling login form");
+        await emailInput.fill(email);
+        await passwordInput.fill(password);
+
+        const submit = page.locator(
+          'button[type="submit"], input[type="submit"], button:has-text("Log in"), button:has-text("Login"), button:has-text("Sign in"), button:has-text("Continue")'
+        ).first();
+        console.log("[refresh-cookie] submitting login form");
+        await submit.click();
+        console.log("[refresh-cookie] waiting for auth cookie after submit");
+        const hasCookie = await finalizeAuthenticatedSession(page, LOGIN_URL);
+        if (!hasCookie) {
+          throw new Error("Auth cookie was not set after login.");
+        }
       } catch (error) {
-        await logPageSnapshot(page, "email-input-timeout");
+        await logPageSnapshot(page, "login-form-failure");
         if (isTimeoutError(error)) {
           throw new Error(
-            `Focus login form did not become visible. Current url=${page.url() || "-"}`
+            `Focus login form did not become usable. Current url=${page.url() || "-"}`
           );
         }
         throw error;
-      }
-      await emailInput.fill(email);
-      await passwordInput.fill(password);
-
-      const submit = page.locator(
-        'button[type="submit"], input[type="submit"], button:has-text("Log in"), button:has-text("Login"), button:has-text("Sign in"), button:has-text("Continue")'
-      ).first();
-      await submit.click();
-      const hasCookie = await finalizeAuthenticatedSession(page, LOGIN_URL);
-      if (!hasCookie) {
-        throw new Error("Auth cookie was not set after login.");
       }
       cookies = await context.cookies("https://api.marketech.com.au", "https://focus.marketech.com.au");
       existingAt = cookies.find((c) => c.name === "at");
