@@ -7,6 +7,7 @@ ENV PORT=3000
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 COPY package.json package-lock.json ./
+COPY scripts/install-playwright-chromium.js ./scripts/install-playwright-chromium.js
 RUN npm ci --omit=dev
 
 COPY . .
