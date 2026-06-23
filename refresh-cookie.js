@@ -72,6 +72,60 @@ async function finalizeAuthenticatedSession(page, loginUrl) {
   return waitForAuthCookie(page.context(), 12_000, 250);
 }
 
+function isTimeoutError(error) {
+  return /Timeout/i.test(String(error?.message || ""));
+}
+
+async function logPageSnapshot(page, label) {
+  try {
+    const title = await page.title().catch(() => "");
+    const url = page.url();
+    const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+    const snippet = String(bodyText || "").replace(/\s+/g, " ").trim().slice(0, 240);
+    console.warn(
+      `[refresh-cookie] ${label} snapshot url=${url || "-"} title=${title || "-"} body=${snippet || "-"}`
+    );
+  } catch (error) {
+    console.warn(`[refresh-cookie] ${label} snapshot failed: ${error?.message || "Unknown error"}`);
+  }
+}
+
+async function gotoWithFallback(page, url) {
+  const attempts = [
+    { waitUntil: "domcontentloaded", timeout: 20_000 },
+    { waitUntil: "load", timeout: 20_000 },
+    { waitUntil: "commit", timeout: 15_000 }
+  ];
+
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      console.log(
+        `[refresh-cookie] navigating to ${url} (waitUntil=${attempt.waitUntil}, timeout=${attempt.timeout})`
+      );
+      await page.goto(url, attempt);
+      console.log(
+        `[refresh-cookie] navigation reached ${page.url() || url} via ${attempt.waitUntil}`
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `[refresh-cookie] navigation attempt failed (waitUntil=${attempt.waitUntil}): ${error?.message || "Unknown error"}`
+      );
+      await logPageSnapshot(page, `after-${attempt.waitUntil}-failure`);
+    }
+  }
+
+  const finalUrl = page.url();
+  if (finalUrl && finalUrl !== "about:blank") {
+    console.warn(`[refresh-cookie] proceeding despite navigation failures; current url=${finalUrl}`);
+    return;
+  }
+
+  throw lastError || new Error(`Failed to navigate to ${url}.`);
+}
+
 async function refreshCookie() {
   if (activeRefreshPromise) {
     return activeRefreshPromise;
@@ -94,7 +148,18 @@ async function refreshCookie() {
   try {
     const context = await browser.newContext();
     const page = await context.newPage();
-    await page.goto(LOGIN_URL, { waitUntil: "domcontentloaded", timeout: 60000 });
+    page.on("console", (msg) => {
+      const text = msg.text().trim();
+      if (text) {
+        console.log(`[refresh-cookie] browser-console ${text}`);
+      }
+    });
+    page.on("pageerror", (error) => {
+      console.warn(`[refresh-cookie] pageerror ${error?.message || "Unknown error"}`);
+    });
+
+    await gotoWithFallback(page, LOGIN_URL);
+    await logPageSnapshot(page, "post-login-goto");
 
     // If already logged in (existing session), skip form interaction.
     let cookies = await context.cookies("https://api.marketech.com.au", "https://focus.marketech.com.au");
@@ -115,7 +180,17 @@ async function refreshCookie() {
         'input[type="password"], input[name="password"], input[id*="password" i], input[placeholder*="password" i], input[autocomplete="current-password"]'
       ).first();
 
-      await emailInput.waitFor({ state: "visible", timeout: 45000 });
+      try {
+        await emailInput.waitFor({ state: "visible", timeout: 45_000 });
+      } catch (error) {
+        await logPageSnapshot(page, "email-input-timeout");
+        if (isTimeoutError(error)) {
+          throw new Error(
+            `Focus login form did not become visible. Current url=${page.url() || "-"}`
+          );
+        }
+        throw error;
+      }
       await emailInput.fill(email);
       await passwordInput.fill(password);
 
