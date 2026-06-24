@@ -25,6 +25,7 @@ const app = express();
 const PORT = getEnvNumber("PORT");
 const CHART_CACHE_TTL_MS = getEnvNumber("CHART_CACHE_TTL_MS");
 const PUBLIC_WIDGET_REFRESH_MS = getEnvNumber("PUBLIC_WIDGET_REFRESH_MS");
+const MINI_CHART_MAX_POINTS = 32;
 const COOKIE_UPDATE_TOKEN = getEnvString("COOKIE_UPDATE_TOKEN").trim();
 const INFO_LOGS_ENABLED = getEnvBoolean("INFO_LOGS_ENABLED");
 const CHART_DEBUG_LOGS = ["1", "true", "yes", "on"].includes(
@@ -113,6 +114,98 @@ function logChartDebug(event, details = {}) {
   console.log(`[chart-debug] ${new Date().toISOString()} ${event}`, details);
 }
 
+function getSydneyDateKey(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Sydney",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}
+
+function pickIndexSet(total, desired) {
+  if (!Number.isInteger(total) || total <= 0) {
+    return [];
+  }
+  if (!Number.isInteger(desired) || desired <= 0 || total <= desired) {
+    return Array.from({ length: total }, (_, index) => index);
+  }
+
+  const indices = new Set([0, total - 1]);
+  for (let step = 0; step < desired; step += 1) {
+    indices.add(Math.round((step * (total - 1)) / (desired - 1)));
+  }
+  return Array.from(indices).sort((a, b) => a - b);
+}
+
+function downsampleMiniCandles(candles, maxPoints = MINI_CHART_MAX_POINTS) {
+  if (!Array.isArray(candles) || candles.length === 0) {
+    return [];
+  }
+
+  const safeMaxPoints = Math.max(3, Number(maxPoints) || MINI_CHART_MAX_POINTS);
+  if (candles.length <= safeMaxPoints) {
+    return candles.slice();
+  }
+
+  return pickIndexSet(candles.length, safeMaxPoints)
+    .map((index) => candles[index])
+    .filter(Boolean);
+}
+
+function buildMiniChartPayload(chart) {
+  if (!chart || !Array.isArray(chart.candles)) {
+    return null;
+  }
+
+  const sourceCandles = chart.candles;
+  const candlesByDay = new Map();
+  for (const candle of sourceCandles) {
+    const dateKey = getSydneyDateKey(candle?.time);
+    if (!dateKey) {
+      continue;
+    }
+    if (!candlesByDay.has(dateKey)) {
+      candlesByDay.set(dateKey, []);
+    }
+    candlesByDay.get(dateKey).push(candle);
+  }
+
+  const dateKeys = Array.from(candlesByDay.keys()).sort();
+  let selectedCandles = [];
+  for (let index = dateKeys.length - 1; index >= 0; index -= 1) {
+    const dayCandles = candlesByDay.get(dateKeys[index]) || [];
+    if (dayCandles.length >= 2) {
+      selectedCandles = dayCandles;
+      break;
+    }
+    if (!selectedCandles.length && dayCandles.length) {
+      selectedCandles = dayCandles;
+    }
+  }
+
+  if (!selectedCandles.length) {
+    selectedCandles = sourceCandles.slice(-MINI_CHART_MAX_POINTS);
+  }
+
+  const downsampledCandles = downsampleMiniCandles(selectedCandles, MINI_CHART_MAX_POINTS);
+
+  return {
+    ticker: chart.ticker,
+    intervalKey: "minute-mini",
+    label: "Minute Mini",
+    sourceIntervalKey: chart.intervalKey || "minute",
+    maxPoints: MINI_CHART_MAX_POINTS,
+    originalPoints: selectedCandles.length,
+    candles: downsampledCandles,
+    updatedAt: chart.updatedAt || null
+  };
+}
+
 async function handleQuoteRequest(req, res) {
   const ticker = normalizeSymbol(req.params.symbol);
   if (!isValidSymbol(ticker)) {
@@ -179,6 +272,30 @@ async function handleChartRequest(req, res) {
 
 app.get("/api/chart/:symbol", handleChartRequest);
 app.get("/api/public/chart/:symbol", handleChartRequest);
+
+app.get("/api/chart-mini/:symbol", (req, res) => {
+  const ticker = normalizeSymbol(req.params.symbol);
+  if (!isValidSymbol(ticker)) {
+    return sendValidationError(res);
+  }
+
+  const cached = getChart(ticker, "minute");
+  if (!cached) {
+    return res.status(503).json({
+      error: `Mini chart for ${ticker} is not cached yet. Try again after the collector refreshes it.`,
+      servedFromCache: false,
+      cacheAgeMs: null,
+      isStale: true
+    });
+  }
+
+  const payload = buildMiniChartPayload(cached);
+  const cacheMeta = getChartCacheMeta(cached);
+  return res.json({
+    ...payload,
+    ...cacheMeta
+  });
+});
 
 app.get("/api/search", (req, res) => {
   const q = String(req.query.q || "");

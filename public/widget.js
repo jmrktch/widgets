@@ -1,6 +1,7 @@
 (function () {
   var script = document.currentScript;
   if (!script) return;
+  var maxWatchlistSymbols = 15;
 
   var widgetTypeRaw = String(script.dataset.widget || "ticker").trim().toLowerCase();
   var widgetType = widgetTypeRaw === "watchlists" ? "watchlist" : widgetTypeRaw;
@@ -9,14 +10,36 @@
   var symbols = String(script.dataset.symbols || "BHP,CSL,CBA,A200,TLS,WES,RIO,FMG")
     .split(",")
     .map(function (value) { return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, ""); })
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, maxWatchlistSymbols);
   var interval = String(script.dataset.interval || "day").trim().toLowerCase();
   var containerId = script.dataset.containerId || "";
-  var refreshMs = 10000;
   var width = script.dataset.width || "";
   var apiBase = new URL(script.src, window.location.href).origin;
   var chartLabelFontSize = 10.5;
   var flashTimersByKey = new Map();
+  var sydneyDateKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Sydney",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+  var sydneyTimePartsFormatter = new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Sydney",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+  var axisLabelFormatters = {
+    minuteDate: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }),
+    minuteTime: new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
+    day: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }),
+    month: new Intl.DateTimeFormat("en-US", { month: "short", year: "2-digit" })
+  };
+  var sydneyDateKeyCache = new Map();
+  var sydneyTimePartsCache = new Map();
+  var axisLabelCache = new Map();
   var chartZoomPresets = {
     minute: [
       { key: "1d", label: "1D", durationMs: 1 * 24 * 60 * 60 * 1000 },
@@ -194,35 +217,109 @@
   }
 
   function getSydneyDateKey(iso) {
+    var cacheKey = String(iso || "");
+    if (!cacheKey) return "";
+    if (sydneyDateKeyCache.has(cacheKey)) {
+      return sydneyDateKeyCache.get(cacheKey);
+    }
     var date = new Date(iso);
     if (Number.isNaN(date.getTime())) return "";
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Australia/Sydney",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit"
-    }).format(date);
+    var result = sydneyDateKeyFormatter.format(date);
+    sydneyDateKeyCache.set(cacheKey, result);
+    return result;
+  }
+
+  function getCandleTimeMs(candle) {
+    if (!candle) return NaN;
+    if (Number.isFinite(candle.timeMs)) {
+      return candle.timeMs;
+    }
+    var timeMs = new Date(candle.time).getTime();
+    if (Number.isFinite(timeMs)) {
+      candle.timeMs = timeMs;
+    }
+    return timeMs;
+  }
+
+  function pickMiniSampleIndices(total, desired) {
+    if (!Number.isInteger(total) || total <= 0) return [];
+    if (!Number.isInteger(desired) || desired <= 0 || total <= desired) {
+      return Array.from({ length: total }, function (_, index) { return index; });
+    }
+    var indices = new Set([0, total - 1]);
+    for (var step = 0; step < desired; step += 1) {
+      indices.add(Math.round((step * (total - 1)) / (desired - 1)));
+    }
+    return Array.from(indices).sort(function (a, b) { return a - b; });
+  }
+
+  function downsampleMiniCandles(candles, maxPoints) {
+    if (!Array.isArray(candles) || !candles.length) return [];
+    var safeMaxPoints = Math.max(3, Number(maxPoints) || 32);
+    if (candles.length <= safeMaxPoints) {
+      return candles.slice();
+    }
+    return pickMiniSampleIndices(candles.length, safeMaxPoints).map(function (index) {
+      return candles[index];
+    }).filter(Boolean);
+  }
+
+  function selectMiniChartCandles(sourceCandles) {
+    if (!Array.isArray(sourceCandles) || !sourceCandles.length) return [];
+    var candlesByDay = new Map();
+    sourceCandles.forEach(function (candle) {
+      var dateKey = getSydneyDateKey(candle && candle.time);
+      if (!dateKey) return;
+      if (!candlesByDay.has(dateKey)) {
+        candlesByDay.set(dateKey, []);
+      }
+      candlesByDay.get(dateKey).push(candle);
+    });
+    var dateKeys = Array.from(candlesByDay.keys()).sort();
+    var selected = [];
+    for (var index = dateKeys.length - 1; index >= 0; index -= 1) {
+      var dayCandles = candlesByDay.get(dateKeys[index]) || [];
+      if (dayCandles.length >= 2) {
+        selected = dayCandles;
+        break;
+      }
+      if (!selected.length && dayCandles.length) {
+        selected = dayCandles;
+      }
+    }
+    if (!selected.length) {
+      selected = sourceCandles.slice(-32);
+    }
+    return downsampleMiniCandles(selected, 32);
   }
 
   function getSydneyTimeParts(timeMs) {
+    if (sydneyTimePartsCache.has(timeMs)) {
+      return sydneyTimePartsCache.get(timeMs);
+    }
     var values = {};
-    var formatter = new Intl.DateTimeFormat("en-AU", {
-      timeZone: "Australia/Sydney",
-      weekday: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false
-    });
-    formatter.formatToParts(new Date(timeMs)).forEach(function (part) {
+    sydneyTimePartsFormatter.formatToParts(new Date(timeMs)).forEach(function (part) {
       if (part.type !== "literal") {
         values[part.type] = part.value;
       }
     });
-    return {
+    var result = {
       weekday: values.weekday || "",
       hour: Number(values.hour || 0),
       minute: Number(values.minute || 0)
     };
+    sydneyTimePartsCache.set(timeMs, result);
+    return result;
+  }
+
+  function isSydneyMarketPollingWindow() {
+    var parts = getSydneyTimeParts(Date.now());
+    var isWeekday = ["Mon", "Tue", "Wed", "Thu", "Fri"].indexOf(parts.weekday) >= 0;
+    if (!isWeekday) return false;
+    var totalMinutes = parts.hour * 60 + parts.minute;
+    var windowStartMinutes = 9 * 60 + 50;
+    var windowEndMinutes = 16 * 60 + 30;
+    return totalMinutes >= windowStartMinutes && totalMinutes <= windowEndMinutes;
   }
 
   function getRightScalePadding(stats, digits) {
@@ -244,30 +341,24 @@
     return { width: widthValue, height: heightValue };
   }
 
-  function formatAxisLabel(iso, intervalKey) {
-    if (!iso) return "";
-    var date = new Date(iso);
+  function formatAxisLabel(timeValue, intervalKey) {
+    if (timeValue == null || timeValue === "") return "";
+    var cacheKey = intervalKey + "|" + timeValue;
+    if (axisLabelCache.has(cacheKey)) {
+      return axisLabelCache.get(cacheKey);
+    }
+    var date = typeof timeValue === "number" ? new Date(timeValue) : new Date(timeValue);
     if (Number.isNaN(date.getTime())) return "";
+    var result = "";
     if (intervalKey === "minute" || intervalKey === "hour") {
-      return date.toLocaleDateString([], {
-        month: "short",
-        day: "numeric"
-      }) + " " + date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false
-      });
+      result = axisLabelFormatters.minuteDate.format(date) + " " + axisLabelFormatters.minuteTime.format(date);
+    } else if (intervalKey === "day") {
+      result = axisLabelFormatters.day.format(date);
+    } else {
+      result = axisLabelFormatters.month.format(date);
     }
-    if (intervalKey === "day") {
-      return date.toLocaleDateString([], {
-        month: "short",
-        day: "numeric"
-      });
-    }
-    return date.toLocaleDateString([], {
-      month: "short",
-      year: "2-digit"
-    });
+    axisLabelCache.set(cacheKey, result);
+    return result;
   }
 
   function isCompressedTradingInterval(intervalKey) {
@@ -369,7 +460,7 @@
       var x = axisLeftPadding + ratio * (widthValue - axisLeftPadding - axisRightPadding);
       ticks.push({
         x: x,
-        label: formatAxisLabel(new Date(timeMs).toISOString(), intervalKey)
+        label: formatAxisLabel(timeMs, intervalKey)
       });
     }
     return ticks.filter(function (tick) { return tick.label; });
@@ -388,7 +479,7 @@
       var x = axisLeftPadding + ratio * (widthValue - axisLeftPadding - axisRightPadding);
       ticks.push({
         x: x,
-        label: formatAxisLabel(new Date(slots[index]).toISOString(), intervalKey)
+        label: formatAxisLabel(slots[index], intervalKey)
       });
     }
     return ticks.filter(function (tick) { return tick.label; });
@@ -434,7 +525,7 @@
     if (!Array.isArray(sourceCandles) || !sourceCandles.length) return [];
     var allCandles = sourceCandles
       .map(function (candle) {
-        return Object.assign({}, candle, { timeMs: new Date(candle.time).getTime() });
+        return Object.assign({}, candle, { timeMs: getCandleTimeMs(candle) });
       })
       .filter(function (candle) {
         return Number.isFinite(candle.timeMs);
@@ -541,7 +632,7 @@
       return null;
     }
     var lastCandle = candles[candles.length - 1];
-    var endMs = new Date(lastCandle.time).getTime();
+    var endMs = getCandleTimeMs(lastCandle);
     var startMs = endMs - activePreset.durationMs;
     return { startMs: startMs, endMs: endMs };
   }
@@ -550,7 +641,7 @@
     var window = getVisibleWindow(candles, intervalKey, zoomKey);
     if (!window) return candles || [];
     return (candles || []).filter(function (candle) {
-      var timeMs = new Date(candle.time).getTime();
+      var timeMs = getCandleTimeMs(candle);
       return timeMs >= window.startMs && timeMs <= window.endMs;
     });
   }
@@ -561,7 +652,7 @@
     }
     var allCandles = sourceCandles
       .map(function (candle) {
-        return Object.assign({}, candle, { timeMs: new Date(candle.time).getTime() });
+        return Object.assign({}, candle, { timeMs: getCandleTimeMs(candle) });
       })
       .sort(function (a, b) { return a.timeMs - b.timeMs; });
     var domainStartMs = alignTimeToInterval(window.startMs, intervalKey);
@@ -626,8 +717,8 @@
     var span = max - min || 1;
     var rightPadding = getRightScalePadding(stats);
     var chartRight = widthValue - rightPadding;
-    var windowStartMs = window ? window.startMs : new Date(candles[0].time).getTime();
-    var windowEndMs = window ? window.endMs : new Date(candles[candles.length - 1].time).getTime();
+    var windowStartMs = window ? window.startMs : getCandleTimeMs(candles[0]);
+    var windowEndMs = window ? window.endMs : getCandleTimeMs(candles[candles.length - 1]);
     var plotWidth = widthValue - padding - rightPadding;
     var compressedSlots = isCompressedTradingInterval(intervalKey) ? buildTradingSlots(windowStartMs, windowEndMs, intervalKey) : [];
     var slotIndexMap = new Map(compressedSlots.map(function (slotTimeMs, index) { return [slotTimeMs, index]; }));
@@ -652,7 +743,7 @@
     var priceLines = buildPriceScale(stats, heightValue, padding, bottomPadding, 7);
     return (
       "<svg viewBox='0 0 " + widthValue + " " + heightValue + "' width='100%' height='" + heightValue + "' role='img' aria-label='Delayed area chart'>" +
-      "<defs><linearGradient id='mtwChartFill' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='rgba(34,106,203,0.65)' /><stop offset='100%' stop-color='rgba(255,255,255,0)' /></linearGradient></defs>" +
+      "<defs><linearGradient id='mtwChartFill' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#226acb' stop-opacity='0.65' /><stop offset='100%' stop-color='#ffffff' stop-opacity='0' /></linearGradient></defs>" +
       "<line x1='" + padding + "' y1='" + padding + "' x2='" + padding + "' y2='" + (heightValue - padding) + "' stroke='#dbe5f0' />" +
       priceLines.map(function (line) {
         return "<line x1='" + padding + "' y1='" + line.y.toFixed(2) + "' x2='" + chartRight + "' y2='" + line.y.toFixed(2) + "' stroke='#e3ebf5' stroke-width='1' />";
@@ -688,14 +779,14 @@
     var rightPadding = getRightScalePadding(stats);
     var chartRight = widthValue - rightPadding;
     var window = getVisibleWindow(candles, intervalKey, zoomKey);
-    var windowStartMs = window ? window.startMs : new Date(visibleCandles[0].time).getTime();
-    var windowEndMs = window ? window.endMs : new Date(visibleCandles[visibleCandles.length - 1].time).getTime();
+    var windowStartMs = window ? window.startMs : getCandleTimeMs(visibleCandles[0]);
+    var windowEndMs = window ? window.endMs : getCandleTimeMs(visibleCandles[visibleCandles.length - 1]);
     var plotWidth = widthValue - padding - rightPadding;
     var stepMs = getIntervalStepMs(intervalKey);
     var compressedSlots = isCompressedTradingInterval(intervalKey) ? buildTradingSlots(windowStartMs, windowEndMs, intervalKey) : [];
     var slotIndexMap = new Map(compressedSlots.map(function (slotTimeMs, index) { return [slotTimeMs, index]; }));
     var plottedCandles = visibleCandles.filter(function (candle) {
-      var candleTimeMs = new Date(candle.time).getTime();
+      var candleTimeMs = getCandleTimeMs(candle);
       if (!Number.isFinite(candleTimeMs) || candleTimeMs < windowStartMs || candleTimeMs > windowEndMs) {
         return false;
       }
@@ -713,7 +804,7 @@
       return heightValue - bottomPadding - ((value - stats.min) / span) * (heightValue - padding - bottomPadding);
     }
     var parts = plottedCandles.map(function (candle) {
-      var candleTimeMs = new Date(candle.time).getTime();
+      var candleTimeMs = getCandleTimeMs(candle);
       var slotIndex = compressedSlots.length > 1 ? slotIndexMap.get(candleTimeMs) : null;
       var ratio = compressedSlots.length > 1
         ? slotIndex / (compressedSlots.length - 1)
@@ -764,6 +855,24 @@
     });
   }
 
+  function fetchMiniChart(symbolValue) {
+    return fetchJson(apiBase + "/api/chart-mini/" + encodeURIComponent(symbolValue))
+      .then(function (data) {
+        if (data && Array.isArray(data.candles) && data.candles.length) {
+          return data;
+        }
+        throw new Error("Mini chart payload is empty.");
+      })
+      .catch(function () {
+        return fetchJson(apiBase + "/api/chart/" + encodeURIComponent(symbolValue) + "?interval=minute")
+          .then(function (data) {
+            return {
+              candles: selectMiniChartCandles(data && data.candles)
+            };
+          });
+      });
+  }
+
   function createTickerWidget() {
     mount.innerHTML = "" +
       "<div class='mtw-root mtw-ticker-widget'>" +
@@ -793,7 +902,7 @@
       load: function () {
         return Promise.all([
           fetchJson(apiBase + "/api/quote/" + encodeURIComponent(symbol)),
-          fetchJson(apiBase + "/api/chart/" + encodeURIComponent(symbol) + "?interval=minute").catch(function () { return null; })
+          fetchMiniChart(symbol).catch(function () { return null; })
         ]).then(function (results) {
           var quote = results[0];
           var chartData = results[1];
@@ -812,12 +921,7 @@
             var currentPrice = Number(quote.price);
             var currentChange = Number(quote.change);
             var previousClose = Number.isFinite(currentPrice) && Number.isFinite(currentChange) ? currentPrice - currentChange : null;
-            var minuteCandles = chartData.candles;
-            var latestDateKey = minuteCandles.length ? getSydneyDateKey(minuteCandles[minuteCandles.length - 1].time) : "";
-            var todayCandles = minuteCandles.filter(function (candle) {
-              return getSydneyDateKey(candle.time) === latestDateKey;
-            });
-            var svgMarkup = buildMiniChartSvgMarkup(todayCandles, previousClose, { width: 114, height: 52, padding: 4, endpointRadius: 2.8 });
+            var svgMarkup = buildMiniChartSvgMarkup(chartData.candles, previousClose, { width: 114, height: 52, padding: 4, endpointRadius: 2.8 });
             miniChartWrapEl.innerHTML = svgMarkup || "<div class='mtw-mini-chart-placeholder'>No day chart</div>";
           }
           previousPrice = nextPrice;
@@ -852,7 +956,7 @@
         return Promise.all(symbols.map(function (tickerSymbol) {
           return Promise.all([
             fetchJson(apiBase + "/api/quote/" + encodeURIComponent(tickerSymbol)).catch(function () { return null; }),
-            fetchJson(apiBase + "/api/chart/" + encodeURIComponent(tickerSymbol) + "?interval=minute").catch(function () { return null; })
+            fetchMiniChart(tickerSymbol).catch(function () { return null; })
           ]).then(function (results) {
             return { symbol: tickerSymbol, quote: results[0], chart: results[1] };
           });
@@ -868,12 +972,8 @@
             var currentPrice = Number(row.quote.price);
             var currentChange = Number(row.quote.change);
             var previousClose = Number.isFinite(currentPrice) && Number.isFinite(currentChange) ? currentPrice - currentChange : null;
-            var minuteCandles = row.chart && Array.isArray(row.chart.candles) ? row.chart.candles : [];
-            var latestDateKey = minuteCandles.length ? getSydneyDateKey(minuteCandles[minuteCandles.length - 1].time) : "";
-            var todayCandles = minuteCandles.filter(function (candle) {
-              return getSydneyDateKey(candle.time) === latestDateKey;
-            });
-            var chartSvg = buildMiniChartSvgMarkup(todayCandles, previousClose, { width: 72, height: 22, padding: 2, endpointRadius: 1.8 }) || "-";
+            var miniCandles = row.chart && Array.isArray(row.chart.candles) ? row.chart.candles : [];
+            var chartSvg = buildMiniChartSvgMarkup(miniCandles, previousClose, { width: 72, height: 22, padding: 2, endpointRadius: 1.8 }) || "-";
             var symbolKey = row.quote.ticker || row.symbol;
             return "<tr data-symbol='" + symbolKey + "'>" +
               "<td class='mtw-watchlist-cell mtw-watchlist-code'>" + row.quote.ticker + "</td>" +
@@ -1061,6 +1161,11 @@
   mount.innerHTML = "";
   mount.style.width = normalizeSize(width, widgetType === "ticker" ? "350px" : "100%");
   mount.style.maxWidth = widgetType === "ticker" ? normalizeSize(width, "350px") : "none";
+  var refreshMs = widgetType === "chart"
+    ? 60000
+    : widgetType === "watchlist"
+      ? 30000
+      : 15000;
 
   var widget = widgetType === "watchlist"
     ? createWatchlistWidget()
@@ -1073,5 +1178,10 @@
   }
 
   runLoad();
-  setInterval(runLoad, refreshMs);
+  setInterval(function () {
+    if (!isSydneyMarketPollingWindow()) {
+      return;
+    }
+    runLoad();
+  }, refreshMs);
 })();

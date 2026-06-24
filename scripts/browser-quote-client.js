@@ -8,6 +8,7 @@ const ENV_PATH = path.join(__dirname, "..", ".env");
 const DEBUG_TIMINGS = String(process.env.DEBUG_TIMINGS || "true").toLowerCase() === "true";
 let browserPromise = null;
 let browserState = null;
+const DEFAULT_SEARCH_PRODUCT_TYPE = "Stock";
 
 function logTiming(label, startedAt, details = {}) {
   if (!DEBUG_TIMINGS) return;
@@ -295,13 +296,12 @@ async function fetchCandles(symbol, interval, start, end) {
   return output;
 }
 
-async function fetchContractsSearch(prefix, maxResults = 100) {
-  const searchTerm = String(prefix || "").trim().toUpperCase();
+async function fetchContractsSearch() {
   const startedAt = Date.now();
 
   async function runFetchAttempt() {
     const state = await ensureBrowserState();
-    return state.page.evaluate(async ({ termValue, maxResultsValue }) => {
+    return state.page.evaluate(async (productTypeValue) => {
       const response = await fetch("https://api.marketech.com.au/contracts/search", {
         method: "POST",
         credentials: "include",
@@ -310,8 +310,14 @@ async function fetchContractsSearch(prefix, maxResults = 100) {
           Accept: "application/json, text/plain, */*"
         },
         body: JSON.stringify({
-          searchTerm: termValue,
-          maxResults: maxResultsValue
+          searchTerm: {
+            Terms: [
+              {
+                Text: productTypeValue,
+                Fields: "ProductType"
+              }
+            ]
+          }
         })
       });
 
@@ -319,10 +325,7 @@ async function fetchContractsSearch(prefix, maxResults = 100) {
         status: response.status,
         text: await response.text()
       };
-    }, {
-      termValue: searchTerm,
-      maxResultsValue: maxResults
-    });
+    }, DEFAULT_SEARCH_PRODUCT_TYPE);
   }
 
   let result = await runFetchAttempt();
@@ -339,13 +342,12 @@ async function fetchContractsSearch(prefix, maxResults = 100) {
   }
 
   const output = {
-    prefix: searchTerm,
+    productType: DEFAULT_SEARCH_PRODUCT_TYPE,
     status: result.status,
     payload: parsed
   };
   logTiming("browser.contractsSearch", startedAt, {
-    prefix: searchTerm,
-    maxResults,
+    productType: DEFAULT_SEARCH_PRODUCT_TYPE,
     status: result.status
   });
   return output;

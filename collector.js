@@ -57,6 +57,13 @@ const COLLECTOR_MARKET_STAGE_ORDER = getEnvList("COLLECTOR_MARKET_STAGE_ORDER")
 const COLLECTOR_AFTER_HOURS_STAGE_ORDER = getEnvList("COLLECTOR_AFTER_HOURS_STAGE_ORDER")
   .map((item) => item.toLowerCase())
   .filter(Boolean);
+const COLLECTOR_FINAL_UPDATE_ENABLED = getEnvBoolean("COLLECTOR_FINAL_UPDATE_ENABLED");
+const COLLECTOR_FINAL_UPDATE_HOUR = getEnvNumber("COLLECTOR_FINAL_UPDATE_HOUR");
+const COLLECTOR_FINAL_UPDATE_MINUTE = getEnvNumber("COLLECTOR_FINAL_UPDATE_MINUTE");
+const COLLECTOR_FINAL_UPDATE_DURATION_MINUTES = getEnvNumber("COLLECTOR_FINAL_UPDATE_DURATION_MINUTES");
+const COLLECTOR_FINAL_STAGE_ORDER = getEnvList("COLLECTOR_FINAL_STAGE_ORDER")
+  .map((item) => item.toLowerCase())
+  .filter(Boolean);
 const COLLECTOR_LOOP_PAUSE_MS = getEnvNumber("COLLECTOR_LOOP_PAUSE_MS");
 const WORKER_LOOP_PAUSE_MS = getEnvNumber("WORKER_LOOP_PAUSE_MS");
 const WORKER_LOOP_JITTER_MS = getEnvNumber("WORKER_LOOP_JITTER_MS");
@@ -67,6 +74,14 @@ const STAGE_MIN_GAP_MS = {
   day: getEnvNumber("DAY_STAGE_MIN_GAP_MS"),
   week: getEnvNumber("WEEK_STAGE_MIN_GAP_MS"),
   month: getEnvNumber("MONTH_STAGE_MIN_GAP_MS")
+};
+const STAGE_MARKET_START_DELAY_MS = {
+  quote: getEnvNumber("QUOTE_STAGE_MARKET_START_DELAY_MS"),
+  minute: getEnvNumber("MINUTE_STAGE_MARKET_START_DELAY_MS"),
+  hour: getEnvNumber("HOUR_STAGE_MARKET_START_DELAY_MS"),
+  day: getEnvNumber("DAY_STAGE_MARKET_START_DELAY_MS"),
+  week: getEnvNumber("WEEK_STAGE_MARKET_START_DELAY_MS"),
+  month: getEnvNumber("MONTH_STAGE_MARKET_START_DELAY_MS")
 };
 const SYMBOL_SYNC_ENABLED = getEnvBoolean("SYMBOL_SYNC_ENABLED");
 const SYMBOL_SYNC_ON_STARTUP = getEnvBoolean("SYMBOL_SYNC_ON_STARTUP");
@@ -578,6 +593,38 @@ function getMarketClockDate(now = new Date()) {
   return new Date(now.toLocaleString("en-US", { timeZone: COLLECTOR_MARKET_TIMEZONE }));
 }
 
+function getMarketScheduleInfo(now = new Date()) {
+  const parts = getMarketTimeParts(now);
+  const weekday = parts.weekday || "";
+  const hour = Number(parts.hour || 0);
+  const minute = Number(parts.minute || 0);
+  const isWeekday = ["Mon", "Tue", "Wed", "Thu", "Fri"].includes(weekday);
+  const minutesSinceMidnight = hour * 60 + minute;
+  const marketOpenMinute = (COLLECTOR_MARKET_OPEN_HOUR * 60) + COLLECTOR_MARKET_OPEN_MINUTE;
+  const marketCloseMinute = (COLLECTOR_MARKET_CLOSE_HOUR * 60) + COLLECTOR_MARKET_CLOSE_MINUTE;
+  const finalUpdateStartMinute = (COLLECTOR_FINAL_UPDATE_HOUR * 60) + COLLECTOR_FINAL_UPDATE_MINUTE;
+  const finalUpdateEndMinute = finalUpdateStartMinute + Math.max(COLLECTOR_FINAL_UPDATE_DURATION_MINUTES, 0);
+
+  return {
+    isWeekday,
+    minutesSinceMidnight,
+    marketOpenMinute,
+    marketCloseMinute,
+    finalUpdateStartMinute,
+    finalUpdateEndMinute
+  };
+}
+
+function getMarketDateKey(now = new Date()) {
+  const parts = getMarketTimeParts(now);
+  return `${parts.year || "0000"}-${parts.month || "00"}-${parts.day || "00"}`;
+}
+
+function getMarketMinutesSinceMidnight(now = new Date()) {
+  const parts = getMarketTimeParts(now);
+  return (Number(parts.hour || 0) * 60) + Number(parts.minute || 0);
+}
+
 function msUntilNextMarketMidnight(now = new Date()) {
   const marketNow = getMarketClockDate(now);
   const nextMarketMidnight = new Date(marketNow);
@@ -672,6 +719,16 @@ async function ensureHealthyAuth(reason = "auth-check") {
     return { ok: true, reused: true };
   }
 
+  if (!COOKIE_REFRESH_ENABLED) {
+    authState = {
+      ...authState,
+      healthy: true,
+      lastCheckedAt: new Date().toISOString()
+    };
+    persistCollectorStatus();
+    return { ok: true, reused: true, refreshDisabled: true };
+  }
+
   if (!authRefreshPromise) {
     authRefreshPromise = refreshCookieWithRetry(reason)
       .finally(() => {
@@ -691,6 +748,10 @@ async function recoverAuth(reason = "auth-recovery") {
   };
   persistCollectorStatus();
 
+  if (!COOKIE_REFRESH_ENABLED) {
+    return { ok: false, refreshDisabled: true };
+  }
+
   if (!authRefreshPromise) {
     authRefreshPromise = refreshCookieWithRetry(reason)
       .finally(() => {
@@ -709,36 +770,64 @@ function isStageEnabled(stageName) {
 }
 
 function getCollectorMode(now = new Date()) {
-  const parts = getMarketTimeParts(now);
-  const weekday = parts.weekday || "";
-  const hour = Number(parts.hour || 0);
-  const minute = Number(parts.minute || 0);
-  const isWeekday = ["Mon", "Tue", "Wed", "Thu", "Fri"].includes(weekday);
-  const minutesSinceMidnight = hour * 60 + minute;
-  const marketOpenMinute = (COLLECTOR_MARKET_OPEN_HOUR * 60) + COLLECTOR_MARKET_OPEN_MINUTE;
-  const marketCloseMinute = (COLLECTOR_MARKET_CLOSE_HOUR * 60) + COLLECTOR_MARKET_CLOSE_MINUTE;
+  const {
+    isWeekday,
+    minutesSinceMidnight,
+    marketOpenMinute,
+    marketCloseMinute,
+    finalUpdateStartMinute,
+    finalUpdateEndMinute
+  } = getMarketScheduleInfo(now);
+
   if (isWeekday && minutesSinceMidnight >= marketOpenMinute && minutesSinceMidnight < marketCloseMinute) {
     return "market";
   }
+
+  if (
+    COLLECTOR_FINAL_UPDATE_ENABLED &&
+    isWeekday &&
+    minutesSinceMidnight >= finalUpdateStartMinute &&
+    minutesSinceMidnight < finalUpdateEndMinute
+  ) {
+    return "final_update";
+  }
+
   return "closed";
 }
 
 function getStageOrderForMode(mode) {
-  if (mode !== "market") {
-    return [];
+  if (mode === "market") {
+    return COLLECTOR_MARKET_STAGE_ORDER
+      .filter((stageName) => isStageEnabled(stageName));
   }
-  return COLLECTOR_MARKET_STAGE_ORDER
-    .filter((stageName) => isStageEnabled(stageName));
+  if (mode === "final_update") {
+    return COLLECTOR_FINAL_STAGE_ORDER
+      .filter((stageName) => isStageEnabled(stageName));
+  }
+  return [];
 }
 
 function getActiveStageSetForMode(mode) {
   return new Set(getStageOrderForMode(mode));
 }
 
-function shouldRunStage(stageName) {
+function shouldRunStage(stageName, mode = getCollectorMode(), now = new Date()) {
   const stage = stageState[stageName];
   if (!stage || stage.running) {
     return false;
+  }
+
+  const activeStages = getActiveStageSetForMode(mode);
+  if (!activeStages.has(stageName)) {
+    return false;
+  }
+
+  if (mode === "market") {
+    const { minutesSinceMidnight, marketOpenMinute } = getMarketScheduleInfo(now);
+    const delayMinutes = Math.max(0, Math.floor((STAGE_MARKET_START_DELAY_MS[stageName] ?? 0) / 60_000));
+    if (minutesSinceMidnight < marketOpenMinute + delayMinutes) {
+      return false;
+    }
   }
 
   const minGapMs = STAGE_MIN_GAP_MS[stageName] ?? 60_000;
@@ -746,7 +835,24 @@ function shouldRunStage(stageName) {
     return true;
   }
 
-  return Date.now() - new Date(stage.lastFinishedAt).getTime() >= minGapMs;
+  const lastFinishedAt = new Date(stage.lastFinishedAt).getTime();
+  const elapsedMs = now.getTime() - lastFinishedAt;
+
+  if (mode === "final_update") {
+    const currentMarketDateKey = getMarketDateKey(now);
+    const lastFinishedMarketDateKey = getMarketDateKey(new Date(lastFinishedAt));
+    const lastFinishedMarketMinutes = getMarketMinutesSinceMidnight(new Date(lastFinishedAt));
+    const { finalUpdateStartMinute } = getMarketScheduleInfo(now);
+
+    if (
+      lastFinishedMarketDateKey !== currentMarketDateKey ||
+      lastFinishedMarketMinutes < finalUpdateStartMinute
+    ) {
+      return true;
+    }
+  }
+
+  return elapsedMs >= minGapMs;
 }
 
 function updateStageState(stageName, patch) {
@@ -1578,7 +1684,7 @@ function startRollingWorkers() {
         persistCollectorStatus();
 
         const activeStages = getActiveStageSetForMode(mode);
-        if (activeStages.has(stageName)) {
+        if (shouldRunStage(stageName, mode)) {
           try {
             await runRollingStage(stageName);
           } catch (error) {
@@ -1853,6 +1959,10 @@ async function startCollector() {
   }
   if (COLLECTOR_MODE === "rolling") {
     console.log(`[collector] worker symbol order mode ${WORKER_SYMBOL_ORDER_MODE}`);
+    console.log(`[collector] stage cadence quote=${STAGE_MIN_GAP_MS.quote}ms minute=${STAGE_MIN_GAP_MS.minute}ms hour=${STAGE_MIN_GAP_MS.hour}ms day=${STAGE_MIN_GAP_MS.day}ms week=${STAGE_MIN_GAP_MS.week}ms month=${STAGE_MIN_GAP_MS.month}ms`);
+    if (COLLECTOR_FINAL_UPDATE_ENABLED) {
+      console.log(`[collector] final update window ${String(COLLECTOR_FINAL_UPDATE_HOUR).padStart(2, "0")}:${String(COLLECTOR_FINAL_UPDATE_MINUTE).padStart(2, "0")} for ${COLLECTOR_FINAL_UPDATE_DURATION_MINUTES} minutes (${COLLECTOR_FINAL_STAGE_ORDER.join(" > ")})`);
+    }
   }
   if (COLLECTOR_SCHEDULER_ENABLED && COLLECTOR_MODE !== "rolling") {
     console.log(`[collector] staged scheduler enabled (${COLLECTOR_MARKET_STAGE_ORDER.join(" > ")})`);

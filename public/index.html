@@ -1050,7 +1050,7 @@
           <section class="builder-card">
             <div class="builder-preview-actions embed-hide">
               <h2>Widget preview</h2>
-              <button id="saveTickerImageBtn" type="button" class="secondary-button">Save as image</button>
+              <button id="saveTickerImageBtn" type="button">Save as image</button>
             </div>
             <section id="quote" class="quote">
               <div
@@ -1072,6 +1072,7 @@
         <h1 class="section-title">Watchlist Widget Builder</h1>
         <div class="builder-shell">
           <section class="builder-card embed-hide">
+            <div id="watchlistBuilderError" class="error"></div>
             <h2>Enter a company name or ASX code:</h2>
             <div class="row">
               <div class="search-wrap">
@@ -1080,7 +1081,7 @@
               </div>
               <button id="addWatchlistBtn" type="button">Add</button>
             </div>
-            <div id="watchlistBuilderError" class="error"></div>
+            
             <div class="builder-toolbar">
               <div id="watchlistChipList" class="chip-list"></div>
             </div>
@@ -1091,7 +1092,7 @@
               <h2>Widget preview</h2>
               <div class="watchlist-controls">
                 <input id="watchlistExportWidth" class="width-input" type="number" min="350" max="2000" placeholder="Image width (px)" />
-                <button id="saveWatchlistImageBtn" type="button" class="secondary-button">Save as image</button>
+                <button id="saveWatchlistImageBtn" type="button">Save as image</button>
               </div>
             </div>
             <section id="watchlistQuote" class="quote">
@@ -1129,7 +1130,7 @@
               <h2>Widget preview</h2>
               <div class="watchlist-controls">
                 <input id="chartExportWidth" class="width-input" type="number" min="350" max="2000" placeholder="Image width (px)" />
-                <button id="saveChartImageBtn" type="button" class="secondary-button">Save as image</button>
+                <button id="saveChartImageBtn" type="button">Save as image</button>
               </div>
             </div>
             <section id="chartQuote" class="quote">
@@ -1238,6 +1239,7 @@
       const lastQuotePriceBySymbol = new Map();
       const lastWatchlistPriceBySymbol = new Map();
       const flashTimersByKey = new Map();
+      const MAX_WATCHLIST_SYMBOLS = 15;
       const defaultWatchlistSymbols = ["BHP", "CSL", "CBA", "A200", "TLS", "WES", "RIO", "FMG"];
       let draftWatchlistSymbols = [...defaultWatchlistSymbols];
       let appliedWatchlistSymbols = [...defaultWatchlistSymbols];
@@ -1258,6 +1260,21 @@
         minute: "2-digit",
         hour12: false
       });
+      const sydneyDateKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Australia/Sydney",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      });
+      const axisLabelFormatters = {
+        minuteDate: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }),
+        minuteTime: new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
+        day: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }),
+        month: new Intl.DateTimeFormat("en-US", { month: "short", year: "2-digit" })
+      };
+      const sydneyDateKeyCache = new Map();
+      const sydneyTimePartsCache = new Map();
+      const axisLabelCache = new Map();
 
       const chartZoomPresets = {
         minute: [
@@ -1629,16 +1646,34 @@
       }
 
       function getSydneyDateKey(iso) {
+        const cacheKey = String(iso || "");
+        if (!cacheKey) {
+          return "";
+        }
+        if (sydneyDateKeyCache.has(cacheKey)) {
+          return sydneyDateKeyCache.get(cacheKey);
+        }
         const date = new Date(iso);
         if (Number.isNaN(date.getTime())) {
           return "";
         }
-        return new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Australia/Sydney",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit"
-        }).format(date);
+        const result = sydneyDateKeyFormatter.format(date);
+        sydneyDateKeyCache.set(cacheKey, result);
+        return result;
+      }
+
+      function getCandleTimeMs(candle) {
+        if (!candle) {
+          return NaN;
+        }
+        if (Number.isFinite(candle.timeMs)) {
+          return candle.timeMs;
+        }
+        const timeMs = new Date(candle.time).getTime();
+        if (Number.isFinite(timeMs)) {
+          candle.timeMs = timeMs;
+        }
+        return timeMs;
       }
 
       function buildMiniAreaSeries(sourceCandles, previousClose) {
@@ -1647,7 +1682,7 @@
         }
 
         const allCandles = sourceCandles
-          .map((candle) => ({ ...candle, timeMs: new Date(candle.time).getTime() }))
+          .map((candle) => ({ ...candle, timeMs: getCandleTimeMs(candle) }))
           .filter((candle) => Number.isFinite(candle.timeMs))
           .sort((a, b) => a.timeMs - b.timeMs);
 
@@ -2089,6 +2124,10 @@
           watchlistBuilderErrorEl.textContent = "Enter a valid ASX code.";
           return;
         }
+        if (draftWatchlistSymbols.length >= MAX_WATCHLIST_SYMBOLS) {
+          watchlistBuilderErrorEl.textContent = `Watchlists are limited to ${MAX_WATCHLIST_SYMBOLS} tickers for now.`;
+          return;
+        }
         if (draftWatchlistSymbols.includes(symbol)) {
           watchlistBuilderErrorEl.textContent = `${symbol} is already in the watchlist.`;
           return;
@@ -2101,7 +2140,7 @@
       }
 
       function activateWatchlistBuilderPreview(symbols) {
-        appliedWatchlistSymbols = [...symbols];
+        appliedWatchlistSymbols = [...symbols].slice(0, MAX_WATCHLIST_SYMBOLS);
         watchlistBuilderErrorEl.textContent = "";
         updateWidgetSnippets();
         renderWatchlistWidgetPreview(appliedWatchlistSymbols).catch((error) => {
@@ -2404,62 +2443,47 @@
         }
       }
 
-      function formatAxisLabel(iso, intervalKey) {
-        if (!iso) return "";
-        const date = new Date(iso);
+      function formatAxisLabel(timeValue, intervalKey) {
+        if (timeValue == null || timeValue === "") return "";
+        const cacheKey = `${intervalKey}|${timeValue}`;
+        if (axisLabelCache.has(cacheKey)) {
+          return axisLabelCache.get(cacheKey);
+        }
+        const date = typeof timeValue === "number" ? new Date(timeValue) : new Date(timeValue);
         if (Number.isNaN(date.getTime())) return "";
+        let result = "";
 
         if (intervalKey === "minute") {
-          const dayPart = date.toLocaleDateString([], {
-            month: "short",
-            day: "numeric"
-          });
-          const timePart = date.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false
-          });
-          return `${dayPart} ${timePart}`;
+          result = `${axisLabelFormatters.minuteDate.format(date)} ${axisLabelFormatters.minuteTime.format(date)}`;
+        } else if (intervalKey === "hour") {
+          result = `${axisLabelFormatters.minuteDate.format(date)} ${axisLabelFormatters.minuteTime.format(date)}`;
+        } else if (intervalKey === "day") {
+          result = axisLabelFormatters.day.format(date);
+        } else {
+          result = axisLabelFormatters.month.format(date);
         }
 
-        if (intervalKey === "hour") {
-          const dayPart = date.toLocaleDateString([], {
-            month: "short",
-            day: "numeric"
-          });
-          const timePart = date.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false
-          });
-          return `${dayPart} ${timePart}`;
-        }
-
-        if (intervalKey === "day") {
-          return date.toLocaleDateString([], {
-            month: "short",
-            day: "numeric"
-          });
-        }
-
-        return date.toLocaleDateString([], {
-          month: "short",
-          year: "2-digit"
-        });
+        axisLabelCache.set(cacheKey, result);
+        return result;
       }
 
       function getSydneyTimeParts(timeMs) {
+        if (sydneyTimePartsCache.has(timeMs)) {
+          return sydneyTimePartsCache.get(timeMs);
+        }
         const values = {};
         for (const part of sydneyTimeFormatter.formatToParts(new Date(timeMs))) {
           if (part.type !== "literal") {
             values[part.type] = part.value;
           }
         }
-        return {
+        const result = {
           weekday: values.weekday || "",
           hour: Number(values.hour || 0),
           minute: Number(values.minute || 0)
         };
+        sydneyTimePartsCache.set(timeMs, result);
+        return result;
       }
 
       function isCompressedTradingInterval(intervalKey) {
@@ -2515,7 +2539,7 @@
           const x = axisLeftPadding + ratio * (width - axisLeftPadding - axisRightPadding);
           ticks.push({
             x,
-            label: formatAxisLabel(new Date(timeMs).toISOString(), currentChartInterval)
+            label: formatAxisLabel(timeMs, currentChartInterval)
           });
         }
 
@@ -2539,7 +2563,7 @@
           const x = axisLeftPadding + ratio * (width - axisLeftPadding - axisRightPadding);
           ticks.push({
             x,
-            label: formatAxisLabel(new Date(slots[index]).toISOString(), intervalKey)
+            label: formatAxisLabel(slots[index], intervalKey)
           });
         }
 
@@ -2662,7 +2686,7 @@
         }
 
         const lastCandle = candles[candles.length - 1];
-        const endMs = new Date(lastCandle.time).getTime();
+        const endMs = getCandleTimeMs(lastCandle);
         const startMs = endMs - activePreset.durationMs;
         return { startMs, endMs };
       }
@@ -2675,7 +2699,7 @@
         }
 
         return candles.filter((candle) => {
-          const timeMs = new Date(candle.time).getTime();
+          const timeMs = getCandleTimeMs(candle);
           return timeMs >= window.startMs && timeMs <= window.endMs;
         });
       }
@@ -2686,7 +2710,7 @@
         }
 
         const allCandles = sourceCandles
-          .map((candle) => ({ ...candle, timeMs: new Date(candle.time).getTime() }))
+          .map((candle) => ({ ...candle, timeMs: getCandleTimeMs(candle) }))
           .sort((a, b) => a.timeMs - b.timeMs);
         const domainStartMs = alignTimeToInterval(window.startMs, intervalKey);
         const domainEndMs = allCandles[allCandles.length - 1].timeMs;
@@ -2804,8 +2828,8 @@
         const max = stats.max;
         const span = max - min || 1;
         const rightScalePadding = getRightScalePadding(stats);
-        const windowStartMs = window?.startMs ?? new Date(candles[0].time).getTime();
-        const windowEndMs = window?.endMs ?? new Date(candles[candles.length - 1].time).getTime();
+        const windowStartMs = window?.startMs ?? getCandleTimeMs(candles[0]);
+        const windowEndMs = window?.endMs ?? getCandleTimeMs(candles[candles.length - 1]);
         const plotWidth = width - padding - rightScalePadding;
         const compressedSlots = isCompressedTradingInterval(currentChartInterval)
           ? buildTradingSlots(windowStartMs, windowEndMs, currentChartInterval)
@@ -2841,8 +2865,8 @@
           <svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img" aria-label="Delayed 1 day chart">
             <defs>
               <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="${fill}" />
-                <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+                <stop offset="0%" stop-color="#226acb" stop-opacity="0.65" />
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
               </linearGradient>
             </defs>
             <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#dbe5f0" />
@@ -2907,8 +2931,8 @@
         const span = stats.max - stats.min || 1;
         const rightScalePadding = getRightScalePadding(stats);
         const window = getVisibleWindow();
-        const windowStartMs = window?.startMs ?? new Date(candles[0].time).getTime();
-        const windowEndMs = window?.endMs ?? new Date(candles[candles.length - 1].time).getTime();
+        const windowStartMs = window?.startMs ?? getCandleTimeMs(candles[0]);
+        const windowEndMs = window?.endMs ?? getCandleTimeMs(candles[candles.length - 1]);
         const plotWidth = width - padding - rightScalePadding;
         const stepMs = getIntervalStepMs(currentChartInterval);
         const compressedSlots = isCompressedTradingInterval(currentChartInterval)
@@ -2916,7 +2940,7 @@
           : [];
         const slotIndexMap = new Map(compressedSlots.map((slotTimeMs, index) => [slotTimeMs, index]));
         const plottedCandles = candles.filter((candle) => {
-          const candleTimeMs = new Date(candle.time).getTime();
+          const candleTimeMs = getCandleTimeMs(candle);
           if (!Number.isFinite(candleTimeMs) || candleTimeMs < windowStartMs || candleTimeMs > windowEndMs) {
             return false;
           }
@@ -2947,7 +2971,7 @@
         const toY = (value) => height - bottomPadding - ((value - stats.min) / span) * (height - padding - bottomPadding);
 
         const parts = plottedCandles.map((candle) => {
-          const candleTimeMs = new Date(candle.time).getTime();
+          const candleTimeMs = getCandleTimeMs(candle);
           const slotIndex = compressedSlots.length > 1 ? slotIndexMap.get(candleTimeMs) : null;
           const ratio = compressedSlots.length > 1
             ? slotIndex / (compressedSlots.length - 1)
@@ -3028,7 +3052,7 @@
           lines.push(`  data-symbol="ASX:${options.symbol}"`);
         }
         if (Array.isArray(options.symbols) && options.symbols.length) {
-          lines.push(`  data-symbols="${options.symbols.join(",")}"`);
+          lines.push(`  data-symbols="${options.symbols.slice(0, MAX_WATCHLIST_SYMBOLS).join(",")}"`);
         }
         if (options.width) {
           lines.push(`  data-width="${options.width}"`);
