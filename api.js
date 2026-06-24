@@ -17,7 +17,7 @@ const {
   readSymbols,
   readSymbolMeta
 } = require("./lib/store");
-const { fetchQuoteForSymbol, fetchChartForSymbol, getCookieDiagnostics } = require("./lib/focus-client");
+const { fetchQuoteForSymbol, getCookieDiagnostics } = require("./lib/focus-client");
 
 validateEnv();
 
@@ -169,30 +169,12 @@ async function handleChartRequest(req, res) {
     durationMs: Date.now() - startedAt
   });
 
-  try {
-    const chart = await fetchChartForSymbol(ticker, intervalKey);
-    const saved = upsertChart(ticker, intervalKey, chart);
-    logChartDebug("api-cache-fill", {
-      ticker,
-      intervalKey,
-      durationMs: Date.now() - startedAt,
-      candleCount: Array.isArray(saved?.candles) ? saved.candles.length : 0
-    });
-    return res.json({
-      ...saved,
-      servedFromCache: false,
-      cacheAgeMs: 0,
-      isStale: false
-    });
-  } catch (error) {
-    const status = Number.isInteger(error?.status) ? error.status : 503;
-    return res.status(status).json({
-      error: error?.message || `Chart for ${ticker} (${intervalKey}) is not cached yet. Try again after the collector refreshes it.`,
-      servedFromCache: false,
-      cacheAgeMs: null,
-      isStale: true
-    });
-  }
+  return res.status(503).json({
+    error: `Chart for ${ticker} (${intervalKey}) is not cached yet. Try again after the collector refreshes it.`,
+    servedFromCache: false,
+    cacheAgeMs: null,
+    isStale: true
+  });
 }
 
 app.get("/api/chart/:symbol", handleChartRequest);
