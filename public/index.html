@@ -1209,6 +1209,7 @@
       let currentChartInterval = "day";
       let currentChartMode = "area";
       let currentChartData = null;
+      let chartDataByInterval = {};
       let currentChartZoomKey = null;
       let searchResults = [];
       let activeSearchIndex = -1;
@@ -1232,6 +1233,7 @@
       let hasRenderedChartPreview = false;
       let currentChartPreviewLoadId = 0;
       let currentChartPreviewContainerId = "chartWidgetPreviewMountInner";
+      const chartIntervals = ["minute", "hour", "day", "month"];
       let chartSearchResults = [];
       let activeChartSearchIndex = -1;
       let chartSearchAbortController = null;
@@ -1240,7 +1242,7 @@
       const lastWatchlistPriceBySymbol = new Map();
       const flashTimersByKey = new Map();
       const MAX_WATCHLIST_SYMBOLS = 15;
-      const defaultWatchlistSymbols = ["BHP", "CSL", "CBA", "A200", "TLS", "WES", "RIO", "FMG"];
+      const defaultWatchlistSymbols = ["BHP", "CSL", "CBA", "TLS", "WES", "RIO", "FMG"];
       let draftWatchlistSymbols = [...defaultWatchlistSymbols];
       let appliedWatchlistSymbols = [...defaultWatchlistSymbols];
       const chartLabelFontSize = 10.5;
@@ -1280,27 +1282,18 @@
         minute: [
           { key: "1d", label: "1D", durationMs: 1 * 24 * 60 * 60 * 1000 },
           { key: "3d", label: "3D", durationMs: 3 * 24 * 60 * 60 * 1000 },
-          { key: "7d", label: "7D", durationMs: 7 * 24 * 60 * 60 * 1000 }
         ],
         hour: [
           { key: "7d", label: "7D", durationMs: 7 * 24 * 60 * 60 * 1000 },
-          { key: "30d", label: "30D", durationMs: 30 * 24 * 60 * 60 * 1000 },
-          { key: "90d", label: "90D", durationMs: 90 * 24 * 60 * 60 * 1000 }
+          { key: "14d", label: "14D", durationMs: 14 * 24 * 60 * 60 * 1000 }
         ],
         day: [
-          { key: "6m", label: "6M", durationMs: 183 * 24 * 60 * 60 * 1000 },
-          { key: "1y", label: "1Y", durationMs: 365 * 24 * 60 * 60 * 1000 },
-          { key: "5y", label: "5Y", durationMs: 5 * 365 * 24 * 60 * 60 * 1000 }
-        ],
-        week: [
-          { key: "1y", label: "1Y", durationMs: 365 * 24 * 60 * 60 * 1000 },
-          { key: "5y", label: "5Y", durationMs: 5 * 365 * 24 * 60 * 60 * 1000 },
-          { key: "15y", label: "15Y", durationMs: 15 * 365 * 24 * 60 * 60 * 1000 }
+          { key: "1m", label: "1M", durationMs: 30 * 24 * 60 * 60 * 1000 },
+          { key: "3m", label: "3M", durationMs: 91 * 24 * 60 * 60 * 1000 }
         ],
         month: [
-          { key: "3y", label: "3Y", durationMs: 3 * 365 * 24 * 60 * 60 * 1000 },
-          { key: "10y", label: "10Y", durationMs: 10 * 365 * 24 * 60 * 60 * 1000 },
-          { key: "25y", label: "25Y", durationMs: 25 * 365 * 24 * 60 * 60 * 1000 }
+          { key: "1y", label: "1Y", durationMs: 365 * 24 * 60 * 60 * 1000 },
+          { key: "3y", label: "3Y", durationMs: 3 * 365 * 24 * 60 * 60 * 1000 }
         ]
       };
 
@@ -1666,6 +1659,9 @@
         if (!candle) {
           return NaN;
         }
+        if (Array.isArray(candle)) {
+          return Number(candle[0]);
+        }
         if (Number.isFinite(candle.timeMs)) {
           return candle.timeMs;
         }
@@ -1674,6 +1670,33 @@
           candle.timeMs = timeMs;
         }
         return timeMs;
+      }
+
+      function getCandleTimeIso(candle) {
+        if (!candle) {
+          return null;
+        }
+        if (Array.isArray(candle)) {
+          const timeMs = getCandleTimeMs(candle);
+          return Number.isFinite(timeMs) ? new Date(timeMs).toISOString() : null;
+        }
+        return candle.time || null;
+      }
+
+      function getCandleOpen(candle) {
+        return Array.isArray(candle) ? Number(candle[1]) : Number(candle?.open);
+      }
+
+      function getCandleHigh(candle) {
+        return Array.isArray(candle) ? Number(candle[2]) : Number(candle?.high);
+      }
+
+      function getCandleLow(candle) {
+        return Array.isArray(candle) ? Number(candle[3]) : Number(candle?.low);
+      }
+
+      function getCandleClose(candle) {
+        return Array.isArray(candle) ? Number(candle[4]) : Number(candle?.close);
       }
 
       function buildMiniAreaSeries(sourceCandles, previousClose) {
@@ -1763,7 +1786,7 @@
 
       function buildMiniChartSvgMarkup(candles, previousClose, options = {}) {
         const miniSeries = buildMiniAreaSeries(candles, previousClose);
-        if (miniSeries.length < 2) {
+        if (miniSeries.length < 1) {
           return "";
         }
 
@@ -1779,7 +1802,7 @@
           values.push(prevClose);
         }
 
-        if (values.length < 2) {
+        if (values.length < 1) {
           return "";
         }
 
@@ -1805,16 +1828,18 @@
         const prevCloseY = Number.isFinite(prevClose)
           ? height - padding - ((prevClose - paddedMin) / paddedSpan) * (height - padding * 2)
           : null;
-        const coloredSegments = Number.isFinite(prevCloseY)
+        const coloredSegments = Number.isFinite(prevCloseY) && coords.length > 1
           ? buildMiniChartColoredSegments(coords, prevCloseY)
           : [];
 
         return `
           <svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img" aria-label="Daily minute chart">
             ${Number.isFinite(prevCloseY) ? `<line x1="${padding}" y1="${prevCloseY.toFixed(2)}" x2="${(width - padding).toFixed(2)}" y2="${prevCloseY.toFixed(2)}" stroke="#7f8da3" stroke-width="1" stroke-dasharray="3 3" opacity="0.9" />` : ""}
-            ${coloredSegments.length
+            ${coords.length > 1 && coloredSegments.length
               ? coloredSegments.map((segment) => `<polyline points="${segment.points}" fill="none" stroke="${segment.stroke}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></polyline>`).join("")
-              : `<polyline points="${linePoints}" fill="none" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></polyline>`
+              : coords.length > 1
+                ? `<polyline points="${linePoints}" fill="none" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></polyline>`
+                : ""
             }
             <circle cx="${coords[coords.length - 1].x.toFixed(2)}" cy="${coords[coords.length - 1].y.toFixed(2)}" r="${endpointRadius}" fill="${stroke}"></circle>
           </svg>
@@ -2354,10 +2379,6 @@
         }
       }
 
-      async function loadMiniTickerChart(symbol, quoteData) {
-        return;
-      }
-
       function summarizeChartPayload(data) {
         const candles = Array.isArray(data?.candles) ? data.candles : [];
         return {
@@ -2365,8 +2386,8 @@
           intervalKey: data?.intervalKey || currentChartInterval,
           candleCount: candles.length,
           updatedAt: data?.updatedAt || null,
-          firstTime: candles[0]?.time || null,
-          lastTime: candles[candles.length - 1]?.time || null
+          firstTime: getCandleTimeIso(candles[0]),
+          lastTime: getCandleTimeIso(candles[candles.length - 1])
         };
       }
 
@@ -2590,10 +2611,10 @@
 
       function getChartStats(candles) {
         const prices = candles.flatMap((candle) => [
-          Number(candle.open),
-          Number(candle.high),
-          Number(candle.low),
-          Number(candle.close)
+          getCandleOpen(candle),
+          getCandleHigh(candle),
+          getCandleLow(candle),
+          getCandleClose(candle)
         ]).filter(Number.isFinite);
 
         if (prices.length < 2) {
@@ -2620,6 +2641,10 @@
       function getActiveZoomPreset() {
         const presets = getZoomPresets(currentChartInterval);
         return presets.find((preset) => preset.key === currentChartZoomKey) || presets[presets.length - 1] || null;
+      }
+
+      function getCurrentChartData() {
+        return chartDataByInterval[currentChartInterval] || null;
       }
 
       function getIntervalStepMs(intervalKey) {
@@ -2679,7 +2704,7 @@
       }
 
       function getVisibleWindow() {
-        const candles = Array.isArray(currentChartData?.candles) ? currentChartData.candles : [];
+        const candles = Array.isArray(getCurrentChartData()?.candles) ? getCurrentChartData().candles : [];
         const activePreset = getActiveZoomPreset();
         if (!candles.length || !activePreset?.durationMs) {
           return null;
@@ -2692,7 +2717,7 @@
       }
 
       function getVisibleCandles() {
-        const candles = Array.isArray(currentChartData?.candles) ? currentChartData.candles : [];
+        const candles = Array.isArray(getCurrentChartData()?.candles) ? getCurrentChartData().candles : [];
         const window = getVisibleWindow();
         if (!window) {
           return candles;
@@ -2710,7 +2735,10 @@
         }
 
         const allCandles = sourceCandles
-          .map((candle) => ({ ...candle, timeMs: getCandleTimeMs(candle) }))
+          .map((candle) => ({
+            sourceCandle: candle,
+            timeMs: getCandleTimeMs(candle)
+          }))
           .sort((a, b) => a.timeMs - b.timeMs);
         const domainStartMs = alignTimeToInterval(window.startMs, intervalKey);
         const domainEndMs = allCandles[allCandles.length - 1].timeMs;
@@ -2718,21 +2746,23 @@
         let lastKnownPrice = null;
 
         for (const candle of allCandles) {
-          if (candle.timeMs <= domainStartMs && Number.isFinite(Number(candle.close))) {
-            lastKnownPrice = Number(candle.close);
+          const close = getCandleClose(candle.sourceCandle);
+          if (candle.timeMs <= domainStartMs && Number.isFinite(close)) {
+            lastKnownPrice = close;
           }
         }
 
         if (!Number.isFinite(lastKnownPrice)) {
-          lastKnownPrice = Number(allCandles[0].close);
+          lastKnownPrice = getCandleClose(allCandles[0].sourceCandle);
         }
 
         if (isCompressedTradingInterval(intervalKey)) {
           const slots = buildTradingSlots(domainStartMs, domainEndMs, intervalKey);
           return slots.map((slotTimeMs) => {
             const candle = candleMap.get(slotTimeMs);
-            if (candle && Number.isFinite(Number(candle.close))) {
-              lastKnownPrice = Number(candle.close);
+            const close = getCandleClose(candle?.sourceCandle);
+            if (candle && Number.isFinite(close)) {
+              lastKnownPrice = close;
             }
 
             return {
@@ -2747,12 +2777,12 @@
           .filter((candle) =>
             candle.timeMs >= domainStartMs &&
             candle.timeMs <= domainEndMs &&
-            Number.isFinite(Number(candle.close))
+            Number.isFinite(getCandleClose(candle.sourceCandle))
           )
           .map((candle) => ({
-            time: candle.time,
+            time: getCandleTimeIso(candle.sourceCandle),
             timeMs: candle.timeMs,
-            value: Number(candle.close)
+            value: getCandleClose(candle.sourceCandle)
           }));
       }
 
@@ -2773,6 +2803,7 @@
           button.addEventListener("click", () => {
             currentChartZoomKey = button.dataset.zoom;
             renderZoomButtons();
+            const currentChartData = getCurrentChartData();
             if (currentChartData) {
               chartRangeEl.textContent = getIntervalLabel(currentChartData);
               renderCurrentChart();
@@ -2793,6 +2824,7 @@
         const padding = 14;
         const bottomPadding = 20;
         const window = getVisibleWindow();
+        const currentChartData = getCurrentChartData();
         const sourceCandles = Array.isArray(currentChartData?.candles) ? currentChartData.candles : candles;
         const areaPoints = buildAreaSeries(sourceCandles, currentChartInterval, window);
         const values = areaPoints.map((point) => Number(point.value)).filter(Number.isFinite);
@@ -2961,7 +2993,8 @@
           return;
         }
         const estimatedBars = compressedSlots.length || (stepMs ? Math.max(Math.round((windowEndMs - windowStartMs) / stepMs) + 1, plottedCandles.length, 1) : Math.max(plottedCandles.length, 1));
-        const candleWidth = Math.max(Math.min((plotWidth / estimatedBars) * 0.65, 10), 2);
+        const minCandleWidth = currentChartInterval === "month" ? 2 : 4;
+        const candleWidth = Math.max(Math.min((plotWidth / estimatedBars) * 0.65, 10), minCandleWidth);
         const axisTicks = compressedSlots.length > 1
           ? buildAxisTicksFromSlots(compressedSlots, width, padding, currentChartInterval)
           : buildAxisTicks(windowStartMs, windowEndMs, width, padding);
@@ -2979,11 +3012,15 @@
               ? (candleTimeMs - windowStartMs) / (windowEndMs - windowStartMs)
               : 0;
           const centerX = padding + ratio * plotWidth;
-          const openY = toY(Number(candle.open));
-          const closeY = toY(Number(candle.close));
-          const highY = toY(Number(candle.high));
-          const lowY = toY(Number(candle.low));
-          const isUp = Number(candle.close) >= Number(candle.open);
+          const openValue = getCandleOpen(candle);
+          const closeValue = getCandleClose(candle);
+          const highValue = getCandleHigh(candle);
+          const lowValue = getCandleLow(candle);
+          const openY = toY(openValue);
+          const closeY = toY(closeValue);
+          const highY = toY(highValue);
+          const lowY = toY(lowValue);
+          const isUp = closeValue >= openValue;
           const color = isUp ? "#118a44" : "#b42318";
           const bodyTop = Math.min(openY, closeY);
           const bodyHeight = Math.max(Math.abs(closeY - openY), 1.5);
@@ -3021,10 +3058,10 @@
           intervalKey: currentChartInterval,
           visibleCandles: candles.length,
           plottedCandles: plottedCandles.length,
-          firstTime: plottedCandles[0]?.time || null,
-          lastTime: plottedCandles[plottedCandles.length - 1]?.time || null,
-          startValue: plottedCandles[0]?.close ?? null,
-          endValue: plottedCandles[plottedCandles.length - 1]?.close ?? null,
+          firstTime: getCandleTimeIso(plottedCandles[0]),
+          lastTime: getCandleTimeIso(plottedCandles[plottedCandles.length - 1]),
+          startValue: getCandleClose(plottedCandles[0]),
+          endValue: getCandleClose(plottedCandles[plottedCandles.length - 1]),
           chartRenderMs: metrics?.durationMs ?? null
         });
       }
@@ -3225,7 +3262,7 @@
       async function loadChart(symbol, intervalKey = currentChartInterval) {
         const requestId = ++activeChartRequestId;
         const startedAt = performance.now();
-        const hasExistingChart = Boolean(currentChartData && Array.isArray(currentChartData.candles) && currentChartData.candles.length);
+        const hasExistingChart = chartIntervals.some((key) => Array.isArray(chartDataByInterval[key]?.candles) && chartDataByInterval[key].candles.length);
         if (!hasExistingChart) {
           setChartStatus(`Loading ${intervalKey} chart...`, "loading");
           setChartDebugLine(`Loading ${intervalKey} chart for ${symbol}...`);
@@ -3233,30 +3270,53 @@
         }
         debugChartLog("request-start", { requestId, symbol, intervalKey, hasExistingChart });
         try {
-          const res = await fetch(`/api/chart/${encodeURIComponent(symbol)}?interval=${encodeURIComponent(intervalKey)}`);
-          const data = await readJsonResponse(res);
+          const results = await Promise.allSettled(chartIntervals.map(async (requestedIntervalKey) => {
+            const res = await fetch(`/api/chart/${encodeURIComponent(symbol)}?interval=${encodeURIComponent(requestedIntervalKey)}`);
+            const data = await readJsonResponse(res);
+            return {
+              intervalKey: requestedIntervalKey,
+              ok: res.ok,
+              status: res.status,
+              data
+            };
+          }));
           const fetchDurationMs = Math.round(performance.now() - startedAt);
-          debugChartLog("request-response", {
-            requestId,
-            symbol,
-            intervalKey,
-            ok: res.ok,
-            status: res.status,
-            chartFetchMs: fetchDurationMs,
-            summary: summarizeChartPayload(data)
-          });
-          if (!res.ok) throw new Error(data.error || "Failed to fetch chart.");
           if (requestId !== activeChartRequestId) {
             debugChartLog("request-stale-response", { requestId, activeChartRequestId, symbol, intervalKey });
             return;
           }
-
-          currentChartData = data;
+          const failedIntervals = [];
+          results.forEach((result, index) => {
+            const requestedIntervalKey = chartIntervals[index];
+            if (result.status !== "fulfilled") {
+              failedIntervals.push(requestedIntervalKey);
+              return;
+            }
+            const payload = result.value;
+            debugChartLog("request-response", {
+              requestId,
+              symbol,
+              intervalKey: payload.intervalKey,
+              ok: payload.ok,
+              status: payload.status,
+              chartFetchMs: fetchDurationMs,
+              summary: summarizeChartPayload(payload.data)
+            });
+            if (!payload.ok) {
+              failedIntervals.push(payload.intervalKey);
+              return;
+            }
+            chartDataByInterval[payload.intervalKey] = payload.data;
+          });
+          const currentChartData = getCurrentChartData();
+          if (!currentChartData) {
+            throw new Error("Failed to fetch chart.");
+          }
           if (!currentChartZoomKey) {
             currentChartZoomKey = getZoomPresets(intervalKey).slice(-1)[0]?.key || null;
           }
           renderZoomButtons();
-          chartRangeEl.textContent = getIntervalLabel(data);
+          chartRangeEl.textContent = getIntervalLabel(currentChartData);
           const renderStartedAt = performance.now();
           renderCurrentChart();
           const renderDurationMs = Math.round(performance.now() - renderStartedAt);
@@ -3268,15 +3328,24 @@
             chartFetchMs: fetchDurationMs,
             chartRenderMs: renderDurationMs,
             chartTotalMs: totalDurationMs,
-            servedFromCache: data?.servedFromCache ?? null,
-            isStale: data?.isStale ?? null,
-            cacheAgeMs: data?.cacheAgeMs ?? null
+            servedFromCache: currentChartData?.servedFromCache ?? null,
+            isStale: currentChartData?.isStale ?? null,
+            cacheAgeMs: currentChartData?.cacheAgeMs ?? null
           });
-          const candles = Array.isArray(data?.candles) ? data.candles : [];
+          const candles = Array.isArray(currentChartData?.candles) ? currentChartData.candles : [];
           setChartDebugLine(
             `Loaded ${intervalKey} in ${totalDurationMs}ms · fetch ${fetchDurationMs}ms · render ${renderDurationMs}ms · ${candles.length} candles`
           );
-          clearChartStatus();
+          if (failedIntervals.length) {
+            setChartStatus(`Some chart intervals could not refresh: ${failedIntervals.join(", ")}`, "warning");
+            setTimeout(() => {
+              if (requestId === activeChartRequestId) {
+                clearChartStatus();
+              }
+            }, 2200);
+          } else {
+            clearChartStatus();
+          }
           scheduleEmbedHeightPost();
         } catch (err) {
           debugChartLog("request-error", {
@@ -3301,48 +3370,12 @@
             return;
           }
           currentChartData = null;
+          chartDataByInterval = {};
           chartZoomEl.innerHTML = "";
           setChartEmpty(err.message || "Chart unavailable.");
           setChartDebugLine(`Failed ${intervalKey} load: ${err?.message || "Chart unavailable."}`);
           clearChartStatus();
           scheduleEmbedHeightPost();
-        }
-      }
-
-      async function loadQuote(symbol) {
-        fetchBtn.disabled = true;
-        errorEl.textContent = "";
-        try {
-          let res = await fetch(`/api/quote/${encodeURIComponent(symbol)}`);
-          let data = await readJsonResponse(res);
-          if (!res.ok) throw new Error(data.error || "Failed to fetch quote.");
-
-          const nextPrice = Number(data.price);
-          const previousPrice = lastQuotePriceBySymbol.get(data.ticker || symbol);
-          const isUp = Number(data.change) >= 0;
-          const isFlat = Number(data.change) === 0;
-          const cls = isUp ? "up" : "down";
-
-          chartTickerEl.textContent = data.ticker;
-          chartCompanyEl.textContent = data.companyName || "";
-          chartPriceEl.textContent = Number(data.price).toFixed(2);
-          chartChangeEl.className = isFlat ? "metric no-change" : `metric ${cls}`;
-          chartChangePctEl.className = isFlat ? "metric no-change" : `metric ${cls}`;
-          chartChangeEl.textContent = Number(data.change) === 0 ? "0.00" : fmtSigned(data.change);
-          chartChangePctEl.textContent = Number(data.changePercent) === 0 ? "(0.00%)" : `(${fmtSigned(data.changePercent)}%)`;
-          applyPriceFlash(chartPriceEl, `chart-quote:${data.ticker || symbol}`, previousPrice, nextPrice);
-          if (Number.isFinite(nextPrice)) {
-            lastQuotePriceBySymbol.set(data.ticker || symbol, nextPrice);
-          }
-          updateWidgetSnippets();
-          updateHomeEmbedPreviews();
-          loadChart(symbol, currentChartInterval);
-          scheduleEmbedHeightPost();
-        } catch (err) {
-          errorEl.textContent = err.message || "Error loading quote.";
-          scheduleEmbedHeightPost();
-        } finally {
-          fetchBtn.disabled = false;
         }
       }
 
@@ -3417,13 +3450,6 @@
         }
         activateChartBuilderPreview(symbol);
       });
-
-      function startAutoRefresh() {
-        if (refreshTimer) clearInterval(refreshTimer);
-        refreshTimer = setInterval(() => {
-          return;
-        }, 10000);
-      }
 
       fetchBtn.addEventListener("click", () => {
         const symbol = input.value.trim().toUpperCase();
@@ -3598,7 +3624,11 @@
           const nextInterval = button.dataset.interval;
           if (!nextInterval) return;
           setActiveInterval(nextInterval);
-          if (currentTicker) {
+          const currentChartData = getCurrentChartData();
+          if (currentChartData) {
+            chartRangeEl.textContent = getIntervalLabel(currentChartData);
+            renderCurrentChart();
+          } else if (currentTicker) {
             loadChart(currentTicker, nextInterval);
           }
         });
@@ -3609,14 +3639,14 @@
           const nextMode = button.dataset.mode;
           if (!nextMode) return;
           setActiveMode(nextMode);
-          if (currentChartData) {
+          if (getCurrentChartData()) {
             renderCurrentChart();
           }
         });
       }
 
       const chartResizeObserver = new ResizeObserver(() => {
-        if (!currentChartData) {
+        if (!getCurrentChartData()) {
           return;
         }
         if (chartResizeFrame) {

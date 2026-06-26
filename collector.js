@@ -40,7 +40,7 @@ const CHART_BATCH_SIZE = getEnvNumber("CHART_BATCH_SIZE");
 const CHART_BATCH_PAUSE_MS = getEnvNumber("CHART_BATCH_PAUSE_MS");
 const CHART_INTERVAL_KEYS = getEnvList("CHART_INTERVAL_KEYS")
   .map((item) => item.toLowerCase())
-  .filter(Boolean);
+  .filter((item) => Boolean(item) && item !== "week");
 const MINUTE_CHART_SYMBOLS = getEnvList("MINUTE_CHART_SYMBOLS")
   .map((item) => item.toUpperCase())
   .filter(Boolean);
@@ -117,7 +117,6 @@ const WEAK_BATCH_MIN_FAILURES = getEnvNumber("WEAK_BATCH_MIN_FAILURES");
 const WEAK_BATCH_SAMPLE_SIZE = getEnvNumber("WEAK_BATCH_SAMPLE_SIZE");
 const STARTUP_CHART_STAGES = [
   STARTUP_DAY_CHART_ENABLED ? "day" : null,
-  STARTUP_WEEK_CHART_ENABLED ? "week" : null,
   STARTUP_MONTH_CHART_ENABLED ? "month" : null
 ].filter(Boolean);
 

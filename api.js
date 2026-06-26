@@ -17,7 +17,7 @@ const {
   readSymbols,
   readSymbolMeta
 } = require("./lib/store");
-const { fetchQuoteForSymbol, getCookieDiagnostics } = require("./lib/focus-client");
+const { fetchQuoteForSymbol, fetchQuotesBatch, getCookieDiagnostics } = require("./lib/focus-client");
 
 validateEnv();
 
@@ -25,13 +25,23 @@ const app = express();
 const PORT = getEnvNumber("PORT");
 const CHART_CACHE_TTL_MS = getEnvNumber("CHART_CACHE_TTL_MS");
 const PUBLIC_WIDGET_REFRESH_MS = getEnvNumber("PUBLIC_WIDGET_REFRESH_MS");
-const MINI_CHART_MAX_POINTS = 32;
+const API_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const API_RATE_LIMIT_MAX_REQUESTS = 60;
+const API_RATE_LIMIT_BLOCK_MS = 2 * 60 * 1000;
+const MINI_CHART_MAX_POINTS = 16;
+const PUBLIC_CHART_MAX_CANDLES_BY_INTERVAL = {
+  minute: 50,
+  hour: 50,
+  day: 50,
+  month: 36
+};
 const COOKIE_UPDATE_TOKEN = getEnvString("COOKIE_UPDATE_TOKEN").trim();
 const INFO_LOGS_ENABLED = getEnvBoolean("INFO_LOGS_ENABLED");
 const CHART_DEBUG_LOGS = ["1", "true", "yes", "on"].includes(
   String(process.env.CHART_DEBUG_LOGS || "").trim().toLowerCase()
 );
 const RUNTIME_COOKIE_PATH = path.join(__dirname, "data", "runtime-cookie.json");
+const apiRateLimitState = new Map();
 
 if (!INFO_LOGS_ENABLED) {
   console.log = () => {};
@@ -50,6 +60,63 @@ app.use("/api", (req, res, next) => {
   }
   return next();
 });
+
+function getClientIp(req) {
+  const forwardedFor = String(req.headers["x-forwarded-for"] || "").trim();
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return String(req.ip || req.socket?.remoteAddress || "unknown").trim();
+}
+
+function enforceApiRateLimit(req, res, next) {
+  const now = Date.now();
+  const clientIp = getClientIp(req);
+  const currentState = apiRateLimitState.get(clientIp);
+
+  if (currentState?.blockedUntil && currentState.blockedUntil > now) {
+    return res.status(429).json({
+      error: "Too many requests."
+    });
+  }
+
+  const windowStartedAt = currentState?.windowStartedAt || now;
+  const shouldResetWindow = now - windowStartedAt >= API_RATE_LIMIT_WINDOW_MS;
+  const nextState = shouldResetWindow
+    ? { windowStartedAt: now, requestCount: 1, blockedUntil: null }
+    : {
+        windowStartedAt,
+        requestCount: (currentState?.requestCount || 0) + 1,
+        blockedUntil: null
+      };
+
+  if (nextState.requestCount > API_RATE_LIMIT_MAX_REQUESTS) {
+    apiRateLimitState.set(clientIp, {
+      windowStartedAt: now,
+      requestCount: nextState.requestCount,
+      blockedUntil: now + API_RATE_LIMIT_BLOCK_MS
+    });
+    return res.status(429).json({
+      error: "Too many requests."
+    });
+  }
+
+  apiRateLimitState.set(clientIp, nextState);
+
+  if (apiRateLimitState.size > 5000) {
+    for (const [ip, state] of apiRateLimitState.entries()) {
+      const isExpiredWindow = !state?.windowStartedAt || now - state.windowStartedAt >= API_RATE_LIMIT_WINDOW_MS;
+      const isExpiredBlock = !state?.blockedUntil || state.blockedUntil <= now;
+      if (isExpiredWindow && isExpiredBlock) {
+        apiRateLimitState.delete(ip);
+      }
+    }
+  }
+
+  return next();
+}
+
+app.use("/api", enforceApiRateLimit);
 
 function getChartCacheMeta(chart) {
   if (!chart?.updatedAt) {
@@ -103,7 +170,7 @@ function normalizeChartInterval(rawValue) {
   const value = String(rawValue || "day").trim().toLowerCase();
   if (value === "1d") return "minute";
   if (value === "1w") return "day";
-  if (value === "1m") return "week";
+  if (value === "1m") return "day";
   return value;
 }
 
@@ -157,6 +224,51 @@ function downsampleMiniCandles(candles, maxPoints = MINI_CHART_MAX_POINTS) {
     .filter(Boolean);
 }
 
+function roundMiniSeriesValue(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+  return Number(numeric.toFixed(4));
+}
+
+function downsampleChartCandles(candles, maxCandles = 60) {
+  if (!Array.isArray(candles) || candles.length === 0) {
+    return [];
+  }
+
+  const safeMaxCandles = Math.max(3, Number(maxCandles) || 60);
+  if (candles.length <= safeMaxCandles) {
+    return candles.slice();
+  }
+
+  return pickIndexSet(candles.length, safeMaxCandles)
+    .map((index) => candles[index])
+    .filter(Boolean);
+}
+
+function getPublicChartMaxCandles(intervalKey) {
+  const normalized = String(intervalKey || "day").trim().toLowerCase();
+  return PUBLIC_CHART_MAX_CANDLES_BY_INTERVAL[normalized] || 60;
+}
+
+function compactChartCandle(candle) {
+  if (!candle || typeof candle !== "object") {
+    return null;
+  }
+  const timeMs = Number.isFinite(candle.timeMs) ? Number(candle.timeMs) : new Date(candle.time).getTime();
+  if (!Number.isFinite(timeMs)) {
+    return null;
+  }
+  return [
+    timeMs,
+    Number(candle.open),
+    Number(candle.high),
+    Number(candle.low),
+    Number(candle.close)
+  ];
+}
+
 function buildMiniChartPayload(chart) {
   if (!chart || !Array.isArray(chart.candles)) {
     return null;
@@ -193,16 +305,12 @@ function buildMiniChartPayload(chart) {
   }
 
   const downsampledCandles = downsampleMiniCandles(selectedCandles, MINI_CHART_MAX_POINTS);
+  const compactSeries = downsampledCandles
+    .map((candle) => roundMiniSeriesValue(candle?.close))
+    .filter(Number.isFinite);
 
   return {
-    ticker: chart.ticker,
-    intervalKey: "minute-mini",
-    label: "Minute Mini",
-    sourceIntervalKey: chart.intervalKey || "minute",
-    maxPoints: MINI_CHART_MAX_POINTS,
-    originalPoints: selectedCandles.length,
-    candles: downsampledCandles,
-    updatedAt: chart.updatedAt || null
+    series: compactSeries
   };
 }
 
@@ -229,6 +337,63 @@ async function handleQuoteRequest(req, res) {
 app.get("/api/quote/:symbol", handleQuoteRequest);
 app.get("/api/public/quote/:symbol", handleQuoteRequest);
 
+async function handleQuotesRequest(req, res) {
+  const requestedSymbols = String(req.query.symbols || "")
+    .split(",")
+    .map((value) => normalizeSymbol(value))
+    .filter(Boolean);
+  const uniqueSymbols = Array.from(new Set(requestedSymbols)).slice(0, 50);
+
+  if (!uniqueSymbols.length) {
+    return res.status(400).json({
+      error: "Provide at least one symbol in the symbols query parameter."
+    });
+  }
+
+  const invalidSymbol = uniqueSymbols.find((ticker) => !isValidSymbol(ticker));
+  if (invalidSymbol) {
+    return sendValidationError(res);
+  }
+
+  const quotesBySymbol = new Map();
+  const missingSymbols = [];
+
+  uniqueSymbols.forEach((ticker) => {
+    const cached = getQuote(ticker);
+    if (cached) {
+      quotesBySymbol.set(ticker, cached);
+    } else {
+      missingSymbols.push(ticker);
+    }
+  });
+
+  if (missingSymbols.length) {
+    try {
+      const fetchedQuotes = await fetchQuotesBatch(missingSymbols);
+      fetchedQuotes.forEach((quote) => {
+        const ticker = normalizeSymbol(quote?.ticker);
+        if (!ticker) {
+          return;
+        }
+        const stored = upsertQuote(ticker, quote);
+        quotesBySymbol.set(ticker, stored);
+      });
+    } catch (error) {
+      const status = Number.isInteger(error?.status) ? error.status : 500;
+      return res.status(status).json({ error: error?.message || "Failed to load quotes." });
+    }
+  }
+
+  return res.json({
+    results: uniqueSymbols
+      .map((ticker) => quotesBySymbol.get(ticker))
+      .filter(Boolean)
+  });
+}
+
+app.get("/api/quotes", handleQuotesRequest);
+app.get("/api/public/quotes", handleQuotesRequest);
+
 async function handleChartRequest(req, res) {
   const startedAt = Date.now();
   const ticker = normalizeSymbol(req.params.symbol);
@@ -241,6 +406,10 @@ async function handleChartRequest(req, res) {
   const cached = getChart(ticker, intervalKey);
   if (cached) {
     const cacheMeta = getChartCacheMeta(cached);
+    const publicChartMaxCandles = getPublicChartMaxCandles(intervalKey);
+    const publicCandles = downsampleChartCandles(cached.candles, publicChartMaxCandles)
+      .map(compactChartCandle)
+      .filter(Boolean);
     logChartDebug("api-cache-hit", {
       ticker,
       intervalKey,
@@ -248,10 +417,15 @@ async function handleChartRequest(req, res) {
       isStale: cacheMeta.isStale,
       cacheAgeMs: cacheMeta.cacheAgeMs,
       updatedAt: cached.updatedAt || null,
-      candleCount: Array.isArray(cached.candles) ? cached.candles.length : 0
+      candleCount: Array.isArray(cached.candles) ? cached.candles.length : 0,
+      publicChartMaxCandles,
+      servedCandleCount: publicCandles.length
     });
     return res.json({
       ...cached,
+      candleFormat: "timeMs-ohlc-v1",
+      candles: publicCandles,
+      originalCandleCount: Array.isArray(cached.candles) ? cached.candles.length : 0,
       ...cacheMeta
     });
   }
@@ -290,10 +464,41 @@ app.get("/api/chart-mini/:symbol", (req, res) => {
   }
 
   const payload = buildMiniChartPayload(cached);
-  const cacheMeta = getChartCacheMeta(cached);
+  return res.json(payload);
+});
+
+app.get("/api/chart-mini", (req, res) => {
+  const requestedSymbols = String(req.query.symbols || "")
+    .split(",")
+    .map((value) => normalizeSymbol(value))
+    .filter(Boolean);
+  const uniqueSymbols = Array.from(new Set(requestedSymbols)).slice(0, 50);
+
+  if (!uniqueSymbols.length) {
+    return res.status(400).json({
+      error: "Provide at least one symbol in the symbols query parameter."
+    });
+  }
+
+  const invalidSymbol = uniqueSymbols.find((ticker) => !isValidSymbol(ticker));
+  if (invalidSymbol) {
+    return sendValidationError(res);
+  }
+
   return res.json({
-    ...payload,
-    ...cacheMeta
+    results: uniqueSymbols.map((ticker) => {
+      const cached = getChart(ticker, "minute");
+      if (!cached) {
+        return {
+          symbol: ticker,
+          chart: null
+        };
+      }
+      return {
+        symbol: ticker,
+        chart: buildMiniChartPayload(cached)
+      };
+    })
   });
 });
 

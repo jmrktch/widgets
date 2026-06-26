@@ -44,27 +44,18 @@
     minute: [
       { key: "1d", label: "1D", durationMs: 1 * 24 * 60 * 60 * 1000 },
       { key: "3d", label: "3D", durationMs: 3 * 24 * 60 * 60 * 1000 },
-      { key: "7d", label: "7D", durationMs: 7 * 24 * 60 * 60 * 1000 }
     ],
     hour: [
       { key: "7d", label: "7D", durationMs: 7 * 24 * 60 * 60 * 1000 },
-      { key: "30d", label: "30D", durationMs: 30 * 24 * 60 * 60 * 1000 },
-      { key: "90d", label: "90D", durationMs: 90 * 24 * 60 * 60 * 1000 }
+      { key: "14d", label: "14D", durationMs: 14 * 24 * 60 * 60 * 1000 }
     ],
     day: [
-      { key: "6m", label: "6M", durationMs: 183 * 24 * 60 * 60 * 1000 },
-      { key: "1y", label: "1Y", durationMs: 365 * 24 * 60 * 60 * 1000 },
-      { key: "5y", label: "5Y", durationMs: 5 * 365 * 24 * 60 * 60 * 1000 }
-    ],
-    week: [
-      { key: "1y", label: "1Y", durationMs: 365 * 24 * 60 * 60 * 1000 },
-      { key: "5y", label: "5Y", durationMs: 5 * 365 * 24 * 60 * 60 * 1000 },
-      { key: "15y", label: "15Y", durationMs: 15 * 365 * 24 * 60 * 60 * 1000 }
+      { key: "1m", label: "1M", durationMs: 30 * 24 * 60 * 60 * 1000 },
+      { key: "3m", label: "3M", durationMs: 91 * 24 * 60 * 60 * 1000 }
     ],
     month: [
-      { key: "3y", label: "3Y", durationMs: 3 * 365 * 24 * 60 * 60 * 1000 },
-      { key: "10y", label: "10Y", durationMs: 10 * 365 * 24 * 60 * 60 * 1000 },
-      { key: "25y", label: "25Y", durationMs: 25 * 365 * 24 * 60 * 60 * 1000 }
+      { key: "1y", label: "1Y", durationMs: 365 * 24 * 60 * 60 * 1000 },
+      { key: "3y", label: "3Y", durationMs: 3 * 365 * 24 * 60 * 60 * 1000 }
     ]
   };
   var mount = containerId ? document.getElementById(containerId) : null;
@@ -231,6 +222,9 @@
 
   function getCandleTimeMs(candle) {
     if (!candle) return NaN;
+    if (Array.isArray(candle)) {
+      return Number(candle[0]);
+    }
     if (Number.isFinite(candle.timeMs)) {
       return candle.timeMs;
     }
@@ -239,6 +233,31 @@
       candle.timeMs = timeMs;
     }
     return timeMs;
+  }
+
+  function getCandleTimeIso(candle) {
+    if (!candle) return null;
+    if (Array.isArray(candle)) {
+      var timeMs = getCandleTimeMs(candle);
+      return Number.isFinite(timeMs) ? new Date(timeMs).toISOString() : null;
+    }
+    return candle.time || null;
+  }
+
+  function getCandleOpen(candle) {
+    return Array.isArray(candle) ? Number(candle[1]) : Number(candle && candle.open);
+  }
+
+  function getCandleHigh(candle) {
+    return Array.isArray(candle) ? Number(candle[2]) : Number(candle && candle.high);
+  }
+
+  function getCandleLow(candle) {
+    return Array.isArray(candle) ? Number(candle[3]) : Number(candle && candle.low);
+  }
+
+  function getCandleClose(candle) {
+    return Array.isArray(candle) ? Number(candle[4]) : Number(candle && candle.close);
   }
 
   function pickMiniSampleIndices(total, desired) {
@@ -255,7 +274,7 @@
 
   function downsampleMiniCandles(candles, maxPoints) {
     if (!Array.isArray(candles) || !candles.length) return [];
-    var safeMaxPoints = Math.max(3, Number(maxPoints) || 32);
+    var safeMaxPoints = Math.max(3, Number(maxPoints) || 16);
     if (candles.length <= safeMaxPoints) {
       return candles.slice();
     }
@@ -288,9 +307,9 @@
       }
     }
     if (!selected.length) {
-      selected = sourceCandles.slice(-32);
+      selected = sourceCandles.slice(-16);
     }
-    return downsampleMiniCandles(selected, 32);
+    return downsampleMiniCandles(selected, 16);
   }
 
   function getSydneyTimeParts(timeMs) {
@@ -502,7 +521,7 @@
 
   function getChartStats(candles) {
     var prices = (candles || []).flatMap(function (candle) {
-      return [Number(candle.open), Number(candle.high), Number(candle.low), Number(candle.close)];
+      return [getCandleOpen(candle), getCandleHigh(candle), getCandleLow(candle), getCandleClose(candle)];
     }).filter(Number.isFinite);
     if (prices.length < 2) return null;
     var rawMin = Math.min.apply(null, prices);
@@ -521,32 +540,15 @@
     return chartZoomPresets[intervalKey] || chartZoomPresets.day;
   }
 
-  function buildMiniAreaSeries(sourceCandles, previousClose) {
-    if (!Array.isArray(sourceCandles) || !sourceCandles.length) return [];
-    var allCandles = sourceCandles
-      .map(function (candle) {
-        return Object.assign({}, candle, { timeMs: getCandleTimeMs(candle) });
+  function buildMiniAreaSeries(sourceSeries) {
+    if (!Array.isArray(sourceSeries) || !sourceSeries.length) return [];
+    return sourceSeries
+      .map(function (value, index) {
+        return { index: index, value: Number(value) };
       })
-      .filter(function (candle) {
-        return Number.isFinite(candle.timeMs);
-      })
-      .sort(function (a, b) { return a.timeMs - b.timeMs; });
-    if (!allCandles.length) return [];
-    var domainStartMs = allCandles[0].timeMs;
-    var domainEndMs = allCandles[allCandles.length - 1].timeMs;
-    var candleMap = new Map(allCandles.map(function (candle) { return [candle.timeMs, candle]; }));
-    var slots = buildTradingSlots(domainStartMs, domainEndMs);
-    var lastKnownPrice = Number(previousClose);
-    if (!Number.isFinite(lastKnownPrice)) {
-      lastKnownPrice = Number(allCandles[0].close);
-    }
-    return slots.map(function (slotTimeMs) {
-      var candle = candleMap.get(slotTimeMs);
-      if (candle && Number.isFinite(Number(candle.close))) {
-        lastKnownPrice = Number(candle.close);
-      }
-      return { timeMs: slotTimeMs, value: lastKnownPrice };
-    }).filter(function (point) { return Number.isFinite(point.value); });
+      .filter(function (point) {
+        return Number.isFinite(point.value);
+      });
   }
 
   function buildMiniChartColoredSegments(coords, prevCloseY) {
@@ -581,10 +583,10 @@
     return segments;
   }
 
-  function buildMiniChartSvgMarkup(candles, previousClose, options) {
+  function buildMiniChartSvgMarkup(series, previousClose, options) {
     options = options || {};
-    var miniSeries = buildMiniAreaSeries(candles, previousClose);
-    if (miniSeries.length < 2) return "";
+    var miniSeries = buildMiniAreaSeries(series);
+    if (miniSeries.length < 1) return "";
     var chartWidth = options.width == null ? 114 : options.width;
     var chartHeight = options.height == null ? 52 : options.height;
     var padding = options.padding == null ? 4 : options.padding;
@@ -592,7 +594,7 @@
     var prevClose = Number(previousClose);
     var values = miniSeries.map(function (point) { return Number(point.value); }).filter(Number.isFinite);
     if (Number.isFinite(prevClose)) values.push(prevClose);
-    if (values.length < 2) return "";
+    if (values.length < 1) return "";
     var min = Math.min.apply(null, values);
     var max = Math.max.apply(null, values);
     var span = max - min || Math.max(Math.abs(max) * 0.003, 1);
@@ -611,15 +613,19 @@
     var prevCloseY = Number.isFinite(prevClose)
       ? chartHeight - padding - ((prevClose - paddedMin) / paddedSpan) * (chartHeight - padding * 2)
       : null;
-    var coloredSegments = Number.isFinite(prevCloseY) ? buildMiniChartColoredSegments(coords, prevCloseY) : [];
+    var coloredSegments = Number.isFinite(prevCloseY) && coords.length > 1
+      ? buildMiniChartColoredSegments(coords, prevCloseY)
+      : [];
     return (
       "<svg viewBox='0 0 " + chartWidth + " " + chartHeight + "' width='100%' height='" + chartHeight + "' role='img' aria-label='Daily minute chart'>" +
       (Number.isFinite(prevCloseY) ? "<line x1='" + padding + "' y1='" + prevCloseY.toFixed(2) + "' x2='" + (chartWidth - padding).toFixed(2) + "' y2='" + prevCloseY.toFixed(2) + "' stroke='#7f8da3' stroke-width='1' stroke-dasharray='3 3' opacity='0.9' />" : "") +
-      (coloredSegments.length
+      (coords.length > 1 && coloredSegments.length
         ? coloredSegments.map(function (segment) {
           return "<polyline points='" + segment.points + "' fill='none' stroke='" + segment.stroke + "' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'></polyline>";
         }).join("")
-        : "<polyline points='" + linePoints + "' fill='none' stroke='" + stroke + "' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'></polyline>") +
+        : coords.length > 1
+          ? "<polyline points='" + linePoints + "' fill='none' stroke='" + stroke + "' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'></polyline>"
+          : "") +
       "<circle cx='" + coords[coords.length - 1].x.toFixed(2) + "' cy='" + coords[coords.length - 1].y.toFixed(2) + "' r='" + endpointRadius + "' fill='" + stroke + "'></circle>" +
       "</svg>"
     );
@@ -652,7 +658,10 @@
     }
     var allCandles = sourceCandles
       .map(function (candle) {
-        return Object.assign({}, candle, { timeMs: getCandleTimeMs(candle) });
+        return {
+          sourceCandle: candle,
+          timeMs: getCandleTimeMs(candle)
+        };
       })
       .sort(function (a, b) { return a.timeMs - b.timeMs; });
     var domainStartMs = alignTimeToInterval(window.startMs, intervalKey);
@@ -660,18 +669,20 @@
     var candleMap = new Map(allCandles.map(function (candle) { return [candle.timeMs, candle]; }));
     var lastKnownPrice = null;
     allCandles.forEach(function (candle) {
-      if (candle.timeMs <= domainStartMs && Number.isFinite(Number(candle.close))) {
-        lastKnownPrice = Number(candle.close);
+      var close = getCandleClose(candle.sourceCandle);
+      if (candle.timeMs <= domainStartMs && Number.isFinite(close)) {
+        lastKnownPrice = close;
       }
     });
     if (!Number.isFinite(lastKnownPrice)) {
-      lastKnownPrice = Number(allCandles[0].close);
+      lastKnownPrice = getCandleClose(allCandles[0].sourceCandle);
     }
     if (isCompressedTradingInterval(intervalKey)) {
       return buildTradingSlots(domainStartMs, domainEndMs, intervalKey).map(function (slotTimeMs) {
         var candle = candleMap.get(slotTimeMs);
-        if (candle && Number.isFinite(Number(candle.close))) {
-          lastKnownPrice = Number(candle.close);
+        var close = getCandleClose(candle && candle.sourceCandle);
+        if (candle && Number.isFinite(close)) {
+          lastKnownPrice = close;
         }
         return {
           time: new Date(slotTimeMs).toISOString(),
@@ -682,13 +693,13 @@
     }
     return allCandles
       .filter(function (candle) {
-        return candle.timeMs >= domainStartMs && candle.timeMs <= domainEndMs && Number.isFinite(Number(candle.close));
+        return candle.timeMs >= domainStartMs && candle.timeMs <= domainEndMs && Number.isFinite(getCandleClose(candle.sourceCandle));
       })
       .map(function (candle) {
         return {
-          time: candle.time,
+          time: getCandleTimeIso(candle.sourceCandle),
           timeMs: candle.timeMs,
-          value: Number(candle.close)
+          value: getCandleClose(candle.sourceCandle)
         };
       });
   }
@@ -799,7 +810,8 @@
       return "<div class='mtw-chart-empty'>Not enough chart data yet.</div>";
     }
     var estimatedBars = compressedSlots.length || (stepMs ? Math.max(Math.round((windowEndMs - windowStartMs) / stepMs) + 1, plottedCandles.length, 1) : Math.max(plottedCandles.length, 1));
-    var candleWidth = Math.max(Math.min((plotWidth / estimatedBars) * 0.65, 10), 2);
+    var minCandleWidth = intervalKey === "month" ? 2 : 4;
+    var candleWidth = Math.max(Math.min((plotWidth / estimatedBars) * 0.65, 10), minCandleWidth);
     function toY(value) {
       return heightValue - bottomPadding - ((value - stats.min) / span) * (heightValue - padding - bottomPadding);
     }
@@ -812,11 +824,15 @@
           ? (candleTimeMs - windowStartMs) / (windowEndMs - windowStartMs)
           : 0;
       var centerX = padding + ratio * plotWidth;
-      var openY = toY(Number(candle.open));
-      var closeY = toY(Number(candle.close));
-      var highY = toY(Number(candle.high));
-      var lowY = toY(Number(candle.low));
-      var isUp = Number(candle.close) >= Number(candle.open);
+      var openValue = getCandleOpen(candle);
+      var closeValue = getCandleClose(candle);
+      var highValue = getCandleHigh(candle);
+      var lowValue = getCandleLow(candle);
+      var openY = toY(openValue);
+      var closeY = toY(closeValue);
+      var highY = toY(highValue);
+      var lowY = toY(lowValue);
+      var isUp = closeValue >= openValue;
       var color = isUp ? "#118a44" : "#b42318";
       var bodyTop = Math.min(openY, closeY);
       var bodyHeight = Math.max(Math.abs(closeY - openY), 1.5);
@@ -856,22 +872,30 @@
   }
 
   function fetchMiniChart(symbolValue) {
-    return fetchJson(apiBase + "/api/chart-mini/" + encodeURIComponent(symbolValue))
-      .then(function (data) {
-        if (data && Array.isArray(data.candles) && data.candles.length) {
-          return data;
-        }
-        throw new Error("Mini chart payload is empty.");
-      })
-      .catch(function () {
-        return fetchJson(apiBase + "/api/chart/" + encodeURIComponent(symbolValue) + "?interval=minute")
-          .then(function (data) {
-            return {
-              candles: selectMiniChartCandles(data && data.candles)
-            };
-          });
-      });
+    return fetchJson(apiBase + "/api/chart-mini/" + encodeURIComponent(symbolValue));
   }
+
+  function fetchMiniChartsBatch(symbolValues) {
+    var uniqueSymbols = Array.from(new Set((symbolValues || []).filter(Boolean)));
+    if (!uniqueSymbols.length) {
+      return Promise.resolve({ results: [] });
+    }
+    return fetchJson(apiBase + "/api/chart-mini?symbols=" + encodeURIComponent(uniqueSymbols.join(",")));
+  }
+
+  function normalizeWidgetSymbol(value) {
+    return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+
+  function fetchQuotesBatch(symbolValues) {
+    var uniqueSymbols = Array.from(new Set((symbolValues || []).filter(Boolean)));
+    if (!uniqueSymbols.length) {
+      return Promise.resolve({ results: [] });
+    }
+    return fetchJson(apiBase + "/api/quotes?symbols=" + encodeURIComponent(uniqueSymbols.join(",")));
+  }
+
+  var MINI_CHART_REFRESH_MS = 60000;
 
   function createTickerWidget() {
     mount.innerHTML = "" +
@@ -898,18 +922,24 @@
       root.style.maxWidth = normalizeSize(width, "350px");
     }
     var previousPrice = null;
+    var cachedMiniSeries = null;
+    var lastMiniChartRefreshAt = 0;
     return {
       load: function () {
-        return Promise.all([
-          fetchJson(apiBase + "/api/quote/" + encodeURIComponent(symbol)),
-          fetchMiniChart(symbol).catch(function () { return null; })
-        ]).then(function (results) {
+        var now = Date.now();
+        var shouldRefreshMiniChart = !lastMiniChartRefreshAt || now - lastMiniChartRefreshAt >= MINI_CHART_REFRESH_MS;
+        var quoteRequest = fetchJson(apiBase + "/api/quote/" + encodeURIComponent(symbol));
+        var miniChartRequest = shouldRefreshMiniChart
+          ? fetchMiniChart(symbol).catch(function () { return null; })
+          : Promise.resolve(null);
+        return Promise.all([quoteRequest, miniChartRequest]).then(function (results) {
           var quote = results[0];
           var chartData = results[1];
           var nextPrice = Number(quote.price);
           var isFlat = Number(quote.change) === 0;
           var cls = Number(quote.change) >= 0 ? "mtw-up" : "mtw-down";
           tickerEl.textContent = quote.ticker;
+          companyEl.className = "mtw-company";
           companyEl.textContent = quote.companyName || "";
           priceEl.textContent = fmtPrice(quote.price);
           changeEl.className = "mtw-metric mtw-change " + (isFlat ? "mtw-muted" : cls);
@@ -917,16 +947,24 @@
           changeEl.textContent = Number(quote.change) === 0 ? "0.00" : fmtSigned(quote.change);
           changePctEl.textContent = Number(quote.changePercent) === 0 ? "(0.00%)" : "(" + fmtSigned(quote.changePercent) + "%)";
           applyPriceFlash(priceEl, "ticker:" + (quote.ticker || symbol), previousPrice, nextPrice);
-          if (chartData && Array.isArray(chartData.candles)) {
+          if (chartData && Array.isArray(chartData.series)) {
+            cachedMiniSeries = chartData.series.slice();
+            lastMiniChartRefreshAt = now;
+          }
+          if (Array.isArray(cachedMiniSeries) && cachedMiniSeries.length) {
             var currentPrice = Number(quote.price);
             var currentChange = Number(quote.change);
             var previousClose = Number.isFinite(currentPrice) && Number.isFinite(currentChange) ? currentPrice - currentChange : null;
-            var svgMarkup = buildMiniChartSvgMarkup(chartData.candles, previousClose, { width: 114, height: 52, padding: 4, endpointRadius: 2.8 });
+            var svgMarkup = buildMiniChartSvgMarkup(cachedMiniSeries, previousClose, { width: 114, height: 52, padding: 4, endpointRadius: 2.8 });
             miniChartWrapEl.innerHTML = svgMarkup || "<div class='mtw-mini-chart-placeholder'>No day chart</div>";
           }
           previousPrice = nextPrice;
-        }).catch(function () {
-          miniChartWrapEl.innerHTML = "<div class='mtw-mini-chart-placeholder'>Mini chart unavailable</div>";
+        }).catch(function (error) {
+          companyEl.className = "mtw-company mtw-down";
+          companyEl.textContent = (error && error.message) || "Too many requests.";
+          if (!Array.isArray(cachedMiniSeries) || !cachedMiniSeries.length) {
+            miniChartWrapEl.innerHTML = "<div class='mtw-mini-chart-placeholder'>Too many requests.</div>";
+          }
         });
       }
     };
@@ -951,16 +989,41 @@
       root.style.maxWidth = "none";
     }
     var previousPricesBySymbol = new Map();
+    var cachedMiniSeriesBySymbol = new Map();
+    var lastMiniChartRefreshAt = 0;
     return {
       load: function () {
-        return Promise.all(symbols.map(function (tickerSymbol) {
-          return Promise.all([
-            fetchJson(apiBase + "/api/quote/" + encodeURIComponent(tickerSymbol)).catch(function () { return null; }),
-            fetchMiniChart(tickerSymbol).catch(function () { return null; })
-          ]).then(function (results) {
-            return { symbol: tickerSymbol, quote: results[0], chart: results[1] };
+        var now = Date.now();
+        var shouldRefreshMiniCharts = !lastMiniChartRefreshAt || now - lastMiniChartRefreshAt >= MINI_CHART_REFRESH_MS;
+        var quotesRequest = fetchQuotesBatch(symbols);
+        var miniChartsRequest = shouldRefreshMiniCharts
+          ? fetchMiniChartsBatch(symbols)
+          : Promise.resolve([]);
+        return Promise.all([quotesRequest, miniChartsRequest]).then(function (results) {
+          var quoteResults = results[0] && Array.isArray(results[0].results) ? results[0].results : [];
+          var miniChartResults = results[1] && Array.isArray(results[1].results) ? results[1].results : [];
+          var quotesBySymbol = new Map();
+          quoteResults.forEach(function (quote) {
+            var ticker = normalizeWidgetSymbol(quote && quote.ticker);
+            if (ticker) {
+              quotesBySymbol.set(ticker, quote);
+            }
           });
-        })).then(function (rows) {
+          miniChartResults.forEach(function (entry) {
+            if (entry && entry.chart && Array.isArray(entry.chart.series)) {
+              cachedMiniSeriesBySymbol.set(entry.symbol, entry.chart.series.slice());
+            }
+          });
+          var rows = symbols.map(function (tickerSymbol) {
+            return {
+              symbol: tickerSymbol,
+              quote: quotesBySymbol.get(tickerSymbol) || null,
+              miniSeries: cachedMiniSeriesBySymbol.get(tickerSymbol) || []
+            };
+          });
+          if (shouldRefreshMiniCharts) {
+            lastMiniChartRefreshAt = now;
+          }
           bodyEl.innerHTML = rows.map(function (row) {
             if (!row.quote) {
               return "<tr><td class='mtw-watchlist-cell mtw-watchlist-code'>" + row.symbol + "</td><td class='mtw-watchlist-cell mtw-watchlist-name'>Unavailable</td><td class='mtw-watchlist-cell mtw-watchlist-chart'>-</td><td class='mtw-watchlist-cell mtw-watchlist-last'>-</td><td class='mtw-watchlist-cell'>-</td><td class='mtw-watchlist-cell'>-</td></tr>";
@@ -972,8 +1035,7 @@
             var currentPrice = Number(row.quote.price);
             var currentChange = Number(row.quote.change);
             var previousClose = Number.isFinite(currentPrice) && Number.isFinite(currentChange) ? currentPrice - currentChange : null;
-            var miniCandles = row.chart && Array.isArray(row.chart.candles) ? row.chart.candles : [];
-            var chartSvg = buildMiniChartSvgMarkup(miniCandles, previousClose, { width: 72, height: 22, padding: 2, endpointRadius: 1.8 }) || "-";
+            var chartSvg = buildMiniChartSvgMarkup(row.miniSeries, previousClose, { width: 72, height: 22, padding: 2, endpointRadius: 1.8 }) || "-";
             var symbolKey = row.quote.ticker || row.symbol;
             return "<tr data-symbol='" + symbolKey + "'>" +
               "<td class='mtw-watchlist-cell mtw-watchlist-code'>" + row.quote.ticker + "</td>" +
@@ -999,7 +1061,7 @@
             }
           });
         }).catch(function (error) {
-          bodyEl.innerHTML = "<tr><td class='mtw-watchlist-status' colspan='6'>" + ((error && error.message) || "Watchlist unavailable.") + "</td></tr>";
+          bodyEl.innerHTML = "<tr><td class='mtw-watchlist-status mtw-down' colspan='6'>" + ((error && error.message) || "Too many requests.") + "</td></tr>";
         });
       }
     };
@@ -1019,7 +1081,7 @@
               "<h4 class='mtw-company'></h4>" +
               "<div class='mtw-chart-quote-metrics'><h1 class='mtw-price'>-</h1><h2 class='mtw-metric mtw-change'></h2><h2 class='mtw-metric mtw-change-pct'></h2></div>" +
             "</div>" +
-            "<div class='mtw-chart-controls'><div class='mtw-control-group'><button type='button' class='mtw-chart-btn active'>Area</button><button type='button' class='mtw-chart-btn'>Candles</button></div><div class='mtw-control-group'><button type='button' class='mtw-chart-btn'>Minute</button><button type='button' class='mtw-chart-btn'>Hour</button><button type='button' class='mtw-chart-btn active'>Day</button><button type='button' class='mtw-chart-btn'>Week</button><button type='button' class='mtw-chart-btn'>Month</button></div></div>" +
+            "<div class='mtw-chart-controls'><div class='mtw-control-group'><button type='button' class='mtw-chart-btn active'>Area</button><button type='button' class='mtw-chart-btn'>Candles</button></div><div class='mtw-control-group'><button type='button' class='mtw-chart-btn'>Minute</button><button type='button' class='mtw-chart-btn'>Hour</button><button type='button' class='mtw-chart-btn active'>Day</button><button type='button' class='mtw-chart-btn'>Month</button></div></div>" +
           "</div>" +
           "<div class='mtw-chart-wrap'><div class='mtw-chart-canvas'><div class='mtw-chart-empty'>Load a quote to see the chart.</div></div></div>" +
           "<div class='mtw-chart-bottom'><div class='mtw-chart-zoom'></div><div class='mtw-chart-range'></div></div>" +
@@ -1040,10 +1102,11 @@
     var controlGroups = root.querySelectorAll(".mtw-control-group");
     var modeButtons = Array.from(controlGroups[0].querySelectorAll(".mtw-chart-btn"));
     var intervalButtons = Array.from(controlGroups[1].querySelectorAll(".mtw-chart-btn"));
+    var chartIntervals = ["minute", "hour", "day", "month"];
     var currentMode = "area";
-    var currentInterval = ["minute", "hour", "day", "week", "month"].indexOf(interval) >= 0 ? interval : "day";
+    var currentInterval = ["minute", "hour", "day", "month"].indexOf(interval) >= 0 ? interval : "day";
     var currentZoomKey = getZoomPresets(currentInterval).slice(-1)[0].key;
-    var currentChartData = null;
+    var chartDataByInterval = {};
     var previousPrice = null;
     if (width) {
       root.style.width = normalizeSize(width, "100%");
@@ -1054,8 +1117,11 @@
     intervalButtons[0].dataset.interval = "minute";
     intervalButtons[1].dataset.interval = "hour";
     intervalButtons[2].dataset.interval = "day";
-    intervalButtons[3].dataset.interval = "week";
-    intervalButtons[4].dataset.interval = "month";
+    intervalButtons[3].dataset.interval = "month";
+
+    function getCurrentChartData() {
+      return chartDataByInterval[currentInterval] || null;
+    }
 
     function setActiveButtons() {
       modeButtons.forEach(function (button) {
@@ -1069,7 +1135,7 @@
     function getIntervalLabel(data) {
       var label = (data && data.label) || currentInterval;
       var maxRange = (data && data.maxRangeLabel) || "MAX";
-      var points = getVisibleCandles(currentChartData && currentChartData.candles, currentInterval, currentZoomKey).length;
+      var points = getVisibleCandles(data && data.candles, currentInterval, currentZoomKey).length;
       return label + " interval · max " + maxRange + " · " + points + " candles";
     }
 
@@ -1083,6 +1149,7 @@
         button.addEventListener("click", function () {
           currentZoomKey = button.dataset.zoom;
           renderZoomButtons();
+          var currentChartData = getCurrentChartData();
           if (currentChartData) {
             rangeEl.textContent = getIntervalLabel(currentChartData);
             renderCurrentChart();
@@ -1093,6 +1160,7 @@
 
     function renderCurrentChart() {
       var widthValue = root.clientWidth || 790;
+      var currentChartData = getCurrentChartData();
       var candles = currentChartData && Array.isArray(currentChartData.candles) ? currentChartData.candles : [];
       canvasEl.innerHTML = currentMode === "candles"
         ? buildCandlesChartSvg(candles, widthValue, currentInterval, currentZoomKey)
@@ -1102,10 +1170,18 @@
     function render() {
       return Promise.all([
         fetchJson(apiBase + "/api/quote/" + encodeURIComponent(symbol)),
-        fetchJson(apiBase + "/api/chart/" + encodeURIComponent(symbol) + "?interval=" + encodeURIComponent(currentInterval))
+        Promise.allSettled(chartIntervals.map(function (intervalKey) {
+          return fetchJson(apiBase + "/api/chart/" + encodeURIComponent(symbol) + "?interval=" + encodeURIComponent(intervalKey))
+            .then(function (chart) {
+              return {
+                intervalKey: intervalKey,
+                chart: chart
+              };
+            });
+        }))
       ]).then(function (results) {
         var quote = results[0];
-        var chart = results[1];
+        var chartResults = results[1];
         var isFlat = Number(quote.change) === 0;
         var cls = Number(quote.change) >= 0 ? "mtw-up" : "mtw-down";
         tickerEl.textContent = quote.ticker;
@@ -1117,20 +1193,33 @@
         changePctEl.textContent = Number(quote.changePercent) === 0 ? "(0.00%)" : "(" + fmtSigned(quote.changePercent) + "%)";
         applyPriceFlash(priceEl, "chart:" + (quote.ticker || symbol), previousPrice, Number(quote.price));
         previousPrice = Number(quote.price);
-        currentChartData = chart;
+        var failedIntervals = [];
+        chartResults.forEach(function (result, index) {
+          if (result.status === "fulfilled" && result.value && result.value.chart) {
+            chartDataByInterval[result.value.intervalKey] = result.value.chart;
+          } else {
+            failedIntervals.push(chartIntervals[index]);
+          }
+        });
+        var currentChartData = getCurrentChartData();
         if (!getZoomPresets(currentInterval).some(function (preset) { return preset.key === currentZoomKey; })) {
           currentZoomKey = getZoomPresets(currentInterval).slice(-1)[0].key;
         }
         renderZoomButtons();
-        rangeEl.textContent = getIntervalLabel(chart);
-        renderCurrentChart();
-        statusEl.textContent = "";
+        if (currentChartData) {
+          rangeEl.textContent = getIntervalLabel(currentChartData);
+          renderCurrentChart();
+        } else {
+          canvasEl.innerHTML = "<div class='mtw-chart-empty'>Chart unavailable.</div>";
+          rangeEl.textContent = "";
+        }
+        statusEl.textContent = failedIntervals.length ? ("Some chart intervals could not refresh: " + failedIntervals.join(", ")) : "";
       }).catch(function (error) {
         statusEl.textContent = (error && error.message) || "Chart unavailable.";
       });
     }
     var resizeObserver = new ResizeObserver(function () {
-      if (currentChartData) {
+      if (getCurrentChartData()) {
         renderCurrentChart();
       }
     });
@@ -1139,7 +1228,7 @@
       button.addEventListener("click", function () {
         currentMode = button.dataset.mode || "area";
         setActiveButtons();
-        if (currentChartData) {
+        if (getCurrentChartData()) {
           renderCurrentChart();
         }
       });
@@ -1149,7 +1238,17 @@
         currentInterval = button.dataset.interval || "day";
         currentZoomKey = getZoomPresets(currentInterval).slice(-1)[0].key;
         setActiveButtons();
-        render();
+        renderZoomButtons();
+        var currentChartData = getCurrentChartData();
+        if (currentChartData) {
+          rangeEl.textContent = getIntervalLabel(currentChartData);
+          renderCurrentChart();
+          statusEl.textContent = "";
+        } else {
+          canvasEl.innerHTML = "<div class='mtw-chart-empty'>Chart unavailable.</div>";
+          rangeEl.textContent = "";
+          statusEl.textContent = "Chart unavailable for " + currentInterval + ".";
+        }
       });
     });
     setActiveButtons();
@@ -1172,13 +1271,40 @@
     : widgetType === "chart"
       ? createChartWidget()
       : createTickerWidget();
+  var lastLoadAt = 0;
+  var isPageVisible = typeof document.visibilityState !== "string" ? true : document.visibilityState === "visible";
+  var isWidgetVisible = typeof IntersectionObserver === "undefined" ? true : false;
+
+  function canPollNow() {
+    return isPageVisible && isWidgetVisible;
+  }
 
   function runLoad() {
+    lastLoadAt = Date.now();
     Promise.resolve(widget.load()).catch(function () {});
+  }
+
+  if (typeof document.addEventListener === "function" && typeof document.visibilityState === "string") {
+    document.addEventListener("visibilitychange", function () {
+      isPageVisible = document.visibilityState === "visible";
+    });
+  }
+
+  if (typeof IntersectionObserver !== "undefined") {
+    var visibilityObserver = new IntersectionObserver(function (entries) {
+      var entry = entries && entries[0];
+      isWidgetVisible = Boolean(entry && entry.isIntersecting);
+    }, {
+      threshold: 0.05
+    });
+    visibilityObserver.observe(mount);
   }
 
   runLoad();
   setInterval(function () {
+    if (!canPollNow()) {
+      return;
+    }
     if (!isSydneyMarketPollingWindow()) {
       return;
     }
