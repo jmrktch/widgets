@@ -1,0 +1,72 @@
+name: Publish Market Snapshot
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Sydney market window: 09:30 through 16:50, Monday to Friday.
+    - cron: "30-59/10 9 * * 1-5"
+      timezone: Australia/Sydney
+    - cron: "*/10 10-16 * * 1-5"
+      timezone: Australia/Sydney
+
+concurrency:
+  group: publish-market-snapshot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  collect-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        env:
+          CI: true
+        run: npm ci
+
+      - name: Install Chromium and its Linux dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Collect the market snapshot
+        env:
+          CI: true
+          FOCUS_EMAIL: ${{ secrets.FOCUS_EMAIL }}
+          FOCUS_PASSWORD: ${{ secrets.FOCUS_PASSWORD }}
+          FOCUS_LOGIN_URL: https://focus.marketech.com.au/#/login
+          COOKIE_UPDATE_URL: ${{ secrets.COOKIE_UPDATE_URL }}
+          COOKIE_UPDATE_TOKEN: ${{ secrets.COOKIE_UPDATE_TOKEN }}
+          COOKIE_UPDATE_SOURCE: github-actions-snapshot
+          MARKET_SNAPSHOT_OUTPUT_DIR: site/snapshot/latest
+          PLAYWRIGHT_BROWSERS_PATH: 0
+          MARKET_SNAPSHOT_INTERVAL_MS: 600000
+          MARKET_SNAPSHOT_OPEN_HOUR: 9
+          MARKET_SNAPSHOT_OPEN_MINUTE: 30
+          MARKET_SNAPSHOT_CLOSE_HOUR: 17
+          MARKET_SNAPSHOT_CLOSE_MINUTE: 0
+          COLLECTOR_MARKET_TIMEZONE: Australia/Sydney
+        run: npm run snapshot:once -- --force
+
+      - name: Upload JSON-only Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

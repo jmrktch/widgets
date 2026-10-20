@@ -543,7 +543,68 @@ app.post("/internal/runtime-cookie", (req, res) => {
   });
 });
 
+// This endpoint deliberately exposes metadata only. It is for the GitHub
+// refresh job to decide whether a login is necessary; the cookie value never
+// leaves this service after it has been submitted.
+app.get("/internal/auth-status", async (req, res) => {
+  if (!COOKIE_UPDATE_TOKEN) {
+    return res.status(503).json({
+      error: "COOKIE_UPDATE_TOKEN is not configured on this service."
+    });
+  }
+
+  const secret = getCookieUpdateSecret(req);
+  if (!secret || secret !== COOKIE_UPDATE_TOKEN) {
+    return res.status(401).json({
+      error: "Unauthorized cookie status request."
+    });
+  }
+
+  const cookie = getCookieDiagnostics();
+  // Presence and age alone are not proof that Focus still accepts a session.
+  // The cookie watcher requests this private verification every ten minutes
+  // so it can heal a server-revoked session before collectors run.
+  let verification = null;
+  if (String(req.query.verify || "") === "1" && cookie.activeCookiePresent) {
+    try {
+      await fetchQuoteForSymbol("BHP");
+      verification = { valid: true, checkedAt: new Date().toISOString() };
+    } catch (error) {
+      verification = {
+        valid: false,
+        checkedAt: new Date().toISOString(),
+        status: Number.isFinite(error?.status) ? error.status : null
+      };
+    }
+  }
+  return res.json({
+    ok: true,
+    cookie: {
+      present: cookie.activeCookiePresent,
+      source: cookie.activeCookieSource,
+      updatedAt: cookie.runtimeCookieUpdatedAt,
+      verification,
+      // Useful for diagnosing a deployment, but intentionally no value,
+      // length, or hash that could be treated as a public credential.
+      runtimeCookieExists: cookie.runtimeCookieExists
+    }
+  });
+});
+
 app.get("/internal/status", (req, res) => {
+  if (!COOKIE_UPDATE_TOKEN) {
+    return res.status(503).json({
+      error: "COOKIE_UPDATE_TOKEN is not configured on this service."
+    });
+  }
+
+  const secret = getCookieUpdateSecret(req);
+  if (!secret || secret !== COOKIE_UPDATE_TOKEN) {
+    return res.status(401).json({
+      error: "Unauthorized internal status request."
+    });
+  }
+
   const collectorStatus = readCollectorStatus();
   return res.json({
     api: {

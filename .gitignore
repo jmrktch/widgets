@@ -7,4 +7,7 @@ pnpm-debug.log*
 data/
 chart-request-log.json
 refresh-state.json
+.focus-auth-state.json
 .agents/
+**/env - email.txt
+site/

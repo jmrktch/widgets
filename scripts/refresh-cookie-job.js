@@ -49,7 +49,8 @@ async function runRefreshCookieJob() {
 
   console.log("[refresh-cookie-job] cookie update succeeded");
   if (payload?.diagnostics?.cookie) {
-    console.log("[refresh-cookie-job] service diagnostics", payload.diagnostics.cookie);
+    const diagnostics = payload.diagnostics.cookie;
+    console.log("[refresh-cookie-job] service cookie present=%s updatedAt=%s source=%s", Boolean(diagnostics.activeCookiePresent), diagnostics.runtimeCookieUpdatedAt || "unknown", diagnostics.activeCookieSource || "unknown");
   }
 }
 

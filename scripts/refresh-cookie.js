@@ -7,11 +7,10 @@ const { chromium } = require("playwright");
 const ENV_PATH = path.join(__dirname, "..", ".env");
 const REFRESH_STATE_PATH = path.join(__dirname, "..", "refresh-state.json");
 const RUNTIME_COOKIE_PATH = path.join(__dirname, "..", "data", "runtime-cookie.json");
+const AUTH_STATE_PATH = process.env.FOCUS_AUTH_STATE_PATH || path.join(__dirname, "..", ".focus-auth-state.json");
 const LOGIN_URL = process.env.FOCUS_LOGIN_URL || "https://focus.marketech.com.au/#/login";
 const API_HOST = "api.marketech.com.au";
 let activeRefreshPromise = null;
-
-console.log("[refresh-cookie] build 2026-06-23 hardened login v5");
 
 function readEnvFile() {
   if (!fs.existsSync(ENV_PATH)) return {};
@@ -171,6 +170,7 @@ async function refreshCookie() {
   }
 
   activeRefreshPromise = (async () => {
+  console.log("[refresh-cookie] build 2026-06-23 hardened login v5");
   const env = readEnvFile();
   const email = process.env.FOCUS_EMAIL || env.FOCUS_EMAIL;
   const password = process.env.FOCUS_PASSWORD || env.FOCUS_PASSWORD;
@@ -268,6 +268,11 @@ async function refreshCookie() {
     }
 
     writeRuntimeCookie(headerValue);
+    // The scan and heatmap streams use the authenticated browser session as
+    // well as the API cookie. Persist both from this one authorised login so
+    // collectors do not perform their own competing login.
+    fs.mkdirSync(path.dirname(AUTH_STATE_PATH), { recursive: true });
+    await context.storageState({ path: AUTH_STATE_PATH });
     if (fs.existsSync(ENV_PATH)) {
       const existingText = fs.readFileSync(ENV_PATH, "utf8");
       const nextText = upsertEnvValue(existingText, "MARKETECH_COOKIE", headerValue);

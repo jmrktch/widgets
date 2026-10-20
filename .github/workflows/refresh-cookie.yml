@@ -31,7 +31,22 @@ jobs:
       - name: Install Playwright system dependencies
         run: npx playwright install --with-deps chromium
 
+      - name: Check whether the deployed cookie needs replacement
+        id: cookie-status
+        env:
+          COOKIE_UPDATE_URL: ${{ secrets.COOKIE_UPDATE_URL }}
+          COOKIE_STATUS_URL: ${{ secrets.COOKIE_STATUS_URL }}
+          COOKIE_UPDATE_TOKEN: ${{ secrets.COOKIE_UPDATE_TOKEN }}
+          COOKIE_REFRESH_MAX_AGE_MS: 14400000
+          COOKIE_REFRESH_TIMEZONE: Australia/Sydney
+          COOKIE_REFRESH_OPEN_HOUR: 9
+          COOKIE_REFRESH_OPEN_MINUTE: 0
+          COOKIE_REFRESH_CLOSE_HOUR: 17
+          COOKIE_REFRESH_CLOSE_MINUTE: 30
+        run: npm run auth:should-refresh-cookie
+
       - name: Refresh cookie and push to service
+        if: steps.cookie-status.outputs.should_refresh == 'true'
         env:
           CI: true
           FOCUS_EMAIL: ${{ secrets.FOCUS_EMAIL }}

@@ -1,802 +1,802 @@
 {
-  "A2M": {
-    "name": "The a2 Milk Company Ltd",
-    "productType": "Stock"
-  },
-  "AAA": {
-    "name": "Betashares Australian High Interest Cash ETF",
-    "productType": "Stock"
-  },
-  "ABC": {
-    "name": "Adbri Ltd",
-    "productType": "Stock"
-  },
-  "ABP": {
-    "name": "Abacus Property Group",
-    "productType": "Stock"
-  },
-  "AFI": {
-    "name": "Australian Foundation Investment Company Ltd",
-    "productType": "Stock"
-  },
-  "AGL": {
-    "name": "AGL Energy Ltd",
-    "productType": "Stock"
-  },
-  "AIA": {
-    "name": "Auckland International Airport Ltd",
-    "productType": "Stock"
-  },
-  "ALD": {
-    "name": "Ampol Ltd",
-    "productType": "Stock"
-  },
-  "ALL": {
-    "name": "Aristocrat Leisure Ltd",
-    "productType": "Stock"
-  },
-  "ALQ": {
-    "name": "Als Ltd",
-    "productType": "Stock"
-  },
-  "ALU": {
-    "name": "Altium Ltd",
-    "productType": "Stock"
-  },
-  "ALX": {
-    "name": "Atlas Arteria",
-    "productType": "Stock"
-  },
-  "AMC": {
-    "name": "Amcor Plc",
-    "productType": "Stock"
-  },
-  "AMP": {
-    "name": "AMP Ltd",
-    "productType": "Stock"
-  },
-  "ANN": {
-    "name": "Ansell Ltd",
-    "productType": "Stock"
-  },
-  "ANZ": {
-    "name": "Australia and New Zealand Banking Group Ltd",
-    "productType": "Stock"
-  },
-  "APA": {
-    "name": "APA Group",
-    "productType": "Stock"
-  },
-  "APE": {
-    "name": "Eagers Automotive Ltd",
-    "productType": "Stock"
-  },
-  "APT": {
-    "name": "Afterpay Ltd",
-    "productType": "Stock"
-  },
-  "APX": {
-    "name": "Appen Ltd",
-    "productType": "Stock"
-  },
-  "ARB": {
-    "name": "ARB Corporation Ltd",
-    "productType": "Stock"
-  },
-  "ARG": {
-    "name": "Argo Investments Ltd",
-    "productType": "Stock"
-  },
-  "AST": {
-    "name": "Ausnet Services Ltd",
-    "productType": "Stock"
-  },
-  "ASX": {
-    "name": "ASX Ltd",
-    "productType": "Stock"
-  },
-  "AWC": {
-    "name": "Alumina Ltd",
-    "productType": "Stock"
-  },
-  "AZJ": {
-    "name": "Aurizon Holdings Ltd",
-    "productType": "Stock"
-  },
-  "BAP": {
-    "name": "Bapcor Ltd",
-    "productType": "Stock"
-  },
-  "BEN": {
-    "name": "Bendigo and Adelaide Bank Ltd",
-    "productType": "Stock"
-  },
-  "BGA": {
-    "name": "Bega Cheese Ltd",
+  "360": {
+    "name": "LIFE360 Inc",
     "productType": "Stock"
   },
   "BHP": {
     "name": "BHP Group Ltd",
     "productType": "Stock"
   },
-  "BIN": {
-    "name": "Bingo Industries Ltd",
-    "productType": "Stock"
-  },
-  "BKW": {
-    "name": "Brickworks Ltd",
-    "productType": "Stock"
-  },
-  "BLD": {
-    "name": "Boral Ltd",
-    "productType": "Stock"
-  },
-  "BOQ": {
-    "name": "Bank of Queensland Ltd",
-    "productType": "Stock"
-  },
-  "BPT": {
-    "name": "Beach Energy Ltd",
-    "productType": "Stock"
-  },
-  "BRG": {
-    "name": "Breville Group Ltd",
-    "productType": "Stock"
-  },
-  "BSL": {
-    "name": "Bluescope Steel Ltd",
-    "productType": "Stock"
-  },
-  "BWP": {
-    "name": "BWP Trust",
-    "productType": "Stock"
-  },
-  "BXB": {
-    "name": "Brambles Ltd",
-    "productType": "Stock"
-  },
-  "CAR": {
-    "name": "Carsales.com Ltd",
-    "productType": "Stock"
-  },
   "CBA": {
     "name": "Commonwealth Bank of Australia",
-    "productType": "Stock"
-  },
-  "CCL": {
-    "name": "Coca-Cola Amatil Ltd",
-    "productType": "Stock"
-  },
-  "CCP": {
-    "name": "Credit Corp Group Ltd",
-    "productType": "Stock"
-  },
-  "CDA": {
-    "name": "Codan Ltd",
-    "productType": "Stock"
-  },
-  "CGF": {
-    "name": "Challenger Ltd",
-    "productType": "Stock"
-  },
-  "CHC": {
-    "name": "Charter Hall Group",
-    "productType": "Stock"
-  },
-  "CHN": {
-    "name": "Chalice Mining Ltd",
-    "productType": "Stock"
-  },
-  "CIA": {
-    "name": "Champion Iron Ltd",
-    "productType": "Stock"
-  },
-  "CIM": {
-    "name": "Cimic Group Ltd",
-    "productType": "Stock"
-  },
-  "CLW": {
-    "name": "Charter Hall Long Wale REIT",
-    "productType": "Stock"
-  },
-  "CMW": {
-    "name": "Cromwell Property Group",
-    "productType": "Stock"
-  },
-  "CNU": {
-    "name": "Chorus Ltd",
-    "productType": "Stock"
-  },
-  "COH": {
-    "name": "Cochlear Ltd",
-    "productType": "Stock"
-  },
-  "COL": {
-    "name": "Coles Group Ltd",
-    "productType": "Stock"
-  },
-  "CPU": {
-    "name": "Computershare Ltd",
-    "productType": "Stock"
-  },
-  "CQR": {
-    "name": "Charter Hall Retail REIT",
-    "productType": "Stock"
-  },
-  "CSL": {
-    "name": "CSL Ltd",
-    "productType": "Stock"
-  },
-  "CSR": {
-    "name": "CSR Ltd",
-    "productType": "Stock"
-  },
-  "CTD": {
-    "name": "Corporate Travel Management Ltd",
-    "productType": "Stock"
-  },
-  "CWN": {
-    "name": "Crown Resorts Ltd",
-    "productType": "Stock"
-  },
-  "CWY": {
-    "name": "Cleanaway Waste Management Ltd",
-    "productType": "Stock"
-  },
-  "DEG": {
-    "name": "De Grey Mining Ltd",
-    "productType": "Stock"
-  },
-  "DHG": {
-    "name": "Domain Holdings Australia Ltd",
-    "productType": "Stock"
-  },
-  "DMP": {
-    "name": "Domino's PIZZA Enterprises Ltd",
-    "productType": "Stock"
-  },
-  "DOW": {
-    "name": "Downer Edi Ltd",
-    "productType": "Stock"
-  },
-  "DRR": {
-    "name": "Deterra Royalties Ltd",
-    "productType": "Stock"
-  },
-  "DXS": {
-    "name": "Dexus",
-    "productType": "Stock"
-  },
-  "EBO": {
-    "name": "Ebos Group Ltd",
-    "productType": "Stock"
-  },
-  "ELD": {
-    "name": "Elders Ltd",
-    "productType": "Stock"
-  },
-  "EML": {
-    "name": "EML Payments Ltd",
-    "productType": "Stock"
-  },
-  "EVN": {
-    "name": "Evolution Mining Ltd",
-    "productType": "Stock"
-  },
-  "EVT": {
-    "name": "Event Hospitality and Entertainment Ltd",
-    "productType": "Stock"
-  },
-  "FBU": {
-    "name": "Fletcher Building Ltd",
-    "productType": "Stock"
-  },
-  "FLT": {
-    "name": "Flight Centre Travel Group Ltd",
-    "productType": "Stock"
-  },
-  "FMG": {
-    "name": "Fortescue Metals Group Ltd",
-    "productType": "Stock"
-  },
-  "FPH": {
-    "name": "Fisher & Paykel Healthcare Corporation Ltd",
-    "productType": "Stock"
-  },
-  "GMG": {
-    "name": "Goodman Group",
-    "productType": "Stock"
-  },
-  "GNE": {
-    "name": "Genesis Energy Ltd",
-    "productType": "Stock"
-  },
-  "GOZ": {
-    "name": "Growthpoint Properties Australia",
-    "productType": "Stock"
-  },
-  "GPT": {
-    "name": "GPT Group",
-    "productType": "Stock"
-  },
-  "GXY": {
-    "name": "Galaxy Resources Ltd",
-    "productType": "Stock"
-  },
-  "HLS": {
-    "name": "Healius Ltd",
-    "productType": "Stock"
-  },
-  "HVN": {
-    "name": "Harvey Norman Holdings Ltd",
-    "productType": "Stock"
-  },
-  "IAG": {
-    "name": "Insurance Australia Group Ltd",
-    "productType": "Stock"
-  },
-  "IEL": {
-    "name": "Idp Education Ltd",
-    "productType": "Stock"
-  },
-  "IFL": {
-    "name": "IOOF Holdings Ltd",
-    "productType": "Stock"
-  },
-  "IFT": {
-    "name": "Infratil Ltd",
-    "productType": "Stock"
-  },
-  "IGO": {
-    "name": "IGO Ltd",
-    "productType": "Stock"
-  },
-  "ILU": {
-    "name": "Iluka Resources Ltd",
-    "productType": "Stock"
-  },
-  "IOO": {
-    "name": "Ishares Global 100 ETF",
-    "productType": "Stock"
-  },
-  "IOZ": {
-    "name": "Ishares Core S&P/ASX 200 ETF",
-    "productType": "Stock"
-  },
-  "IPL": {
-    "name": "Incitec Pivot Ltd",
-    "productType": "Stock"
-  },
-  "IRE": {
-    "name": "Iress Ltd",
-    "productType": "Stock"
-  },
-  "IVV": {
-    "name": "Ishares S&P 500 ETF",
-    "productType": "Stock"
-  },
-  "JBH": {
-    "name": "JB Hi-Fi Ltd",
-    "productType": "Stock"
-  },
-  "JHX": {
-    "name": "James Hardie Industries Plc",
-    "productType": "Stock"
-  },
-  "LFG": {
-    "name": "Liberty Financial Group",
-    "productType": "Stock"
-  },
-  "LFS": {
-    "name": "Latitude Group Holdings Ltd",
-    "productType": "Stock"
-  },
-  "LLC": {
-    "name": "Lendlease Group",
-    "productType": "Stock"
-  },
-  "LNK": {
-    "name": "Link Administration Holdings Ltd",
-    "productType": "Stock"
-  },
-  "LYC": {
-    "name": "Lynas Rare EARTHS Ltd",
-    "productType": "Stock"
-  },
-  "MCY": {
-    "name": "Mercury NZ Ltd",
-    "productType": "Stock"
-  },
-  "MEZ": {
-    "name": "Meridian Energy Ltd",
-    "productType": "Stock"
-  },
-  "MFG": {
-    "name": "Magellan Financial Group Ltd",
-    "productType": "Stock"
-  },
-  "MGF": {
-    "name": "Magellan Global Fund",
-    "productType": "Stock"
-  },
-  "MGOC": {
-    "name": "Magellan Global Fund (Open Class) (Managed Fund)",
-    "productType": "Stock"
-  },
-  "MGR": {
-    "name": "Mirvac Group",
-    "productType": "Stock"
-  },
-  "MIN": {
-    "name": "Mineral Resources Ltd",
-    "productType": "Stock"
-  },
-  "MLT": {
-    "name": "Milton Corporation Ltd",
-    "productType": "Stock"
-  },
-  "MP1": {
-    "name": "Megaport Ltd",
-    "productType": "Stock"
-  },
-  "MPL": {
-    "name": "Medibank Private Ltd",
-    "productType": "Stock"
-  },
-  "MQG": {
-    "name": "Macquarie Group Ltd",
-    "productType": "Stock"
-  },
-  "MTS": {
-    "name": "Metcash Ltd",
     "productType": "Stock"
   },
   "NAB": {
     "name": "National Australia Bank Ltd",
     "productType": "Stock"
   },
-  "NCM": {
-    "name": "Newcrest Mining Ltd",
-    "productType": "Stock"
-  },
-  "NEC": {
-    "name": "Nine Entertainment Co. Holdings Ltd",
-    "productType": "Stock"
-  },
-  "NHF": {
-    "name": "Nib Holdings Ltd",
-    "productType": "Stock"
-  },
-  "NIC": {
-    "name": "Nickel Mines Ltd",
-    "productType": "Stock"
-  },
-  "NSR": {
-    "name": "National Storage REIT",
-    "productType": "Stock"
-  },
-  "NST": {
-    "name": "Northern Star Resources Ltd",
-    "productType": "Stock"
-  },
-  "NUF": {
-    "name": "Nufarm Ltd",
-    "productType": "Stock"
-  },
-  "NWL": {
-    "name": "Netwealth Group Ltd",
-    "productType": "Stock"
-  },
-  "NXT": {
-    "name": "NEXTDC Ltd",
-    "productType": "Stock"
-  },
-  "ORA": {
-    "name": "Orora Ltd",
-    "productType": "Stock"
-  },
-  "ORE": {
-    "name": "Orocobre Ltd",
-    "productType": "Stock"
-  },
-  "ORG": {
-    "name": "Origin Energy Ltd",
-    "productType": "Stock"
-  },
-  "ORI": {
-    "name": "Orica Ltd",
-    "productType": "Stock"
-  },
-  "OSH": {
-    "name": "Oil Search Ltd",
-    "productType": "Stock"
-  },
-  "OZL": {
-    "name": "OZ Minerals Ltd",
-    "productType": "Stock"
-  },
-  "PBH": {
-    "name": "Pointsbet Holdings Ltd",
-    "productType": "Stock"
-  },
-  "PDL": {
-    "name": "Pendal Group Ltd",
-    "productType": "Stock"
-  },
-  "PLS": {
-    "name": "Pilbara Minerals Ltd",
-    "productType": "Stock"
-  },
-  "PME": {
-    "name": "Pro Medicus Ltd",
-    "productType": "Stock"
-  },
-  "PMGOLD": {
-    "name": "Gold",
-    "productType": "Stock"
-  },
-  "PMV": {
-    "name": "Premier Investments Ltd",
-    "productType": "Stock"
-  },
-  "PNI": {
-    "name": "Pinnacle Investment Management Group Ltd",
-    "productType": "Stock"
-  },
-  "PNV": {
-    "name": "Polynovo Ltd",
-    "productType": "Stock"
-  },
-  "PPT": {
-    "name": "Perpetual Ltd",
-    "productType": "Stock"
-  },
-  "PTM": {
-    "name": "Platinum Asset Management Ltd",
-    "productType": "Stock"
-  },
-  "QAN": {
-    "name": "Qantas Airways Ltd",
-    "productType": "Stock"
-  },
-  "QBE": {
-    "name": "QBE Insurance Group Ltd",
-    "productType": "Stock"
-  },
-  "QUB": {
-    "name": "QUBE Holdings Ltd",
-    "productType": "Stock"
-  },
-  "REA": {
-    "name": "REA Group Ltd",
-    "productType": "Stock"
-  },
-  "REH": {
-    "name": "Reece Ltd",
-    "productType": "Stock"
-  },
-  "RHC": {
-    "name": "Ramsay Health Care Ltd",
-    "productType": "Stock"
-  },
-  "RIO": {
-    "name": "RIO Tinto Ltd",
-    "productType": "Stock"
-  },
-  "RMD": {
-    "name": "Resmed Inc",
-    "productType": "Stock"
-  },
-  "RRL": {
-    "name": "Regis Resources Ltd",
-    "productType": "Stock"
-  },
-  "RWC": {
-    "name": "Reliance Worldwide Corporation Ltd",
-    "productType": "Stock"
-  },
-  "S32": {
-    "name": "SOUTH32 Ltd",
-    "productType": "Stock"
-  },
-  "SCG": {
-    "name": "Scentre Group",
-    "productType": "Stock"
-  },
-  "SCP": {
-    "name": "Shopping Centres Australasia Property Group",
-    "productType": "Stock"
-  },
-  "SDF": {
-    "name": "Steadfast Group Ltd",
-    "productType": "Stock"
-  },
-  "SEK": {
-    "name": "Seek Ltd",
-    "productType": "Stock"
-  },
-  "SGM": {
-    "name": "Sims Ltd",
-    "productType": "Stock"
-  },
-  "SGP": {
-    "name": "Stockland",
-    "productType": "Stock"
-  },
-  "SGR": {
-    "name": "The Star Entertainment Group Ltd",
-    "productType": "Stock"
-  },
-  "SHL": {
-    "name": "Sonic Healthcare Ltd",
-    "productType": "Stock"
-  },
-  "SKC": {
-    "name": "Skycity Entertainment Group Ltd",
-    "productType": "Stock"
-  },
-  "SKI": {
-    "name": "Spark Infrastructure Group",
-    "productType": "Stock"
-  },
-  "SLK": {
-    "name": "Sealink Travel Group Ltd",
-    "productType": "Stock"
-  },
-  "SNZ": {
-    "name": "Summerset Group Holdings Ltd",
-    "productType": "Stock"
-  },
-  "SOL": {
-    "name": "Washington H Soul Pattinson & Company Ltd",
-    "productType": "Stock"
-  },
-  "SPK": {
-    "name": "Spark New Zealand Ltd",
-    "productType": "Stock"
-  },
-  "STO": {
-    "name": "Santos Ltd",
-    "productType": "Stock"
-  },
-  "STW": {
-    "name": "SPDR S&P/ASX 200 Fund",
-    "productType": "Stock"
-  },
-  "SUL": {
-    "name": "Super Retail Group Ltd",
-    "productType": "Stock"
-  },
-  "SUN": {
-    "name": "Suncorp Group Ltd",
-    "productType": "Stock"
-  },
-  "SVW": {
-    "name": "Seven Group Holdings Ltd",
-    "productType": "Stock"
-  },
-  "SYD": {
-    "name": "Sydney Airport",
-    "productType": "Stock"
-  },
-  "TAH": {
-    "name": "Tabcorp Holdings Ltd",
-    "productType": "Stock"
-  },
-  "TCL": {
-    "name": "Transurban Group",
-    "productType": "Stock"
-  },
-  "TLS": {
-    "name": "Telstra Corporation Ltd",
-    "productType": "Stock"
-  },
-  "TLT": {
-    "name": "Tilt Renewables Ltd",
-    "productType": "Stock"
-  },
-  "TNE": {
-    "name": "Technology One Ltd",
-    "productType": "Stock"
-  },
-  "TPG": {
-    "name": "TPG Telecom Ltd",
-    "productType": "Stock"
-  },
-  "TWE": {
-    "name": "Treasury Wine Estates Ltd",
-    "productType": "Stock"
-  },
-  "TYR": {
-    "name": "Tyro Payments Ltd",
-    "productType": "Stock"
-  },
-  "VAP": {
-    "name": "Vanguard Australian Property Securities INDEX ETF",
-    "productType": "Stock"
-  },
-  "VAS": {
-    "name": "Vanguard Australian Shares INDEX ETF",
-    "productType": "Stock"
-  },
-  "VCX": {
-    "name": "Vicinity Centres",
-    "productType": "Stock"
-  },
-  "VEA": {
-    "name": "Viva Energy Group Ltd",
-    "productType": "Stock"
-  },
-  "VEU": {
-    "name": "Vanguard All-World Ex-US Shares INDEX ETF",
-    "productType": "Stock"
-  },
-  "VGS": {
-    "name": "Vanguard MSCI INDEX International Shares ETF",
-    "productType": "Stock"
-  },
-  "VOC": {
-    "name": "Vocus Group Ltd",
-    "productType": "Stock"
-  },
-  "VTS": {
-    "name": "Vanguard US Total Market Shares INDEX ETF",
-    "productType": "Stock"
-  },
-  "VUK": {
-    "name": "Virgin Money Uk Plc",
-    "productType": "Stock"
-  },
-  "WAM": {
-    "name": "WAM Capital Ltd",
-    "productType": "Stock"
-  },
   "WBC": {
     "name": "Westpac Banking Corporation",
     "productType": "Stock"
   },
-  "WEB": {
-    "name": "Webjet Ltd",
+  "ANZ": {
+    "name": "ANZ Group Holdings Ltd",
+    "productType": "Stock"
+  },
+  "MQG": {
+    "name": "Macquarie Group Ltd",
+    "productType": "Stock"
+  },
+  "CSL": {
+    "name": "CSL Ltd",
     "productType": "Stock"
   },
   "WES": {
     "name": "Wesfarmers Ltd",
     "productType": "Stock"
   },
-  "WOR": {
-    "name": "Worley Ltd",
+  "WDS": {
+    "name": "Woodside Energy Group Ltd",
+    "productType": "Stock"
+  },
+  "RIO": {
+    "name": "RIO Tinto Ltd",
+    "productType": "Stock"
+  },
+  "GMG": {
+    "name": "Goodman Group",
+    "productType": "Stock"
+  },
+  "TLS": {
+    "name": "Telstra Group Ltd",
     "productType": "Stock"
   },
   "WOW": {
     "name": "Woolworths Group Ltd",
     "productType": "Stock"
   },
-  "WPL": {
-    "name": "Woodside Petroleum Ltd",
+  "FMG": {
+    "name": "Fortescue Ltd",
     "productType": "Stock"
   },
-  "WPR": {
-    "name": "Waypoint REIT",
+  "TCL": {
+    "name": "Transurban Group",
+    "productType": "Stock"
+  },
+  "QBE": {
+    "name": "QBE Insurance Group Ltd",
+    "productType": "Stock"
+  },
+  "ALL": {
+    "name": "Aristocrat Leisure Ltd",
+    "productType": "Stock"
+  },
+  "NST": {
+    "name": "Northern Star Resources Ltd",
+    "productType": "Stock"
+  },
+  "SIG": {
+    "name": "Sigma Healthcare Ltd",
+    "productType": "Stock"
+  },
+  "COL": {
+    "name": "Coles Group Ltd",
+    "productType": "Stock"
+  },
+  "STO": {
+    "name": "Santos Ltd",
+    "productType": "Stock"
+  },
+  "BXB": {
+    "name": "Brambles Ltd",
+    "productType": "Stock"
+  },
+  "VAS": {
+    "name": "Vanguard Australian Shares INDEX ETF",
+    "productType": "Fund"
+  },
+  "EVN": {
+    "name": "Evolution Mining Ltd",
+    "productType": "Stock"
+  },
+  "CPU": {
+    "name": "Computershare Ltd",
+    "productType": "Stock"
+  },
+  "FPH": {
+    "name": "Fisher & Paykel Healthcare Corporation Ltd",
+    "productType": "Stock"
+  },
+  "REA": {
+    "name": "REA Group Ltd",
+    "productType": "Stock"
+  },
+  "SUN": {
+    "name": "Suncorp Group Ltd",
+    "productType": "Stock"
+  },
+  "ORG": {
+    "name": "Origin Energy Ltd",
+    "productType": "Stock"
+  },
+  "IAG": {
+    "name": "Insurance Australia Group Ltd",
+    "productType": "Stock"
+  },
+  "S32": {
+    "name": "SOUTH32 Ltd",
+    "productType": "Stock"
+  },
+  "RMD": {
+    "name": "Resmed Inc",
+    "productType": "Stock"
+  },
+  "HDN": {
+    "name": "Homeco Daily Needs REIT",
+    "productType": "Stock"
+  },
+  "VGS": {
+    "name": "Vanguard MSCI INDEX International Shares ETF",
+    "productType": "Fund"
+  },
+  "PME": {
+    "name": "Pro Medicus Ltd",
+    "productType": "Stock"
+  },
+  "SCG": {
+    "name": "Scentre Group",
+    "productType": "Stock"
+  },
+  "SOL": {
+    "name": "Washington H. Soul Pattinson and Company Ltd",
+    "productType": "Stock"
+  },
+  "SGH": {
+    "name": "SGH Ltd",
+    "productType": "Stock"
+  },
+  "APA": {
+    "name": "APA Group",
+    "productType": "Stock"
+  },
+  "IVV": {
+    "name": "iShares S&P 500 ETF",
+    "productType": "Fund"
+  },
+  "BSL": {
+    "name": "Bluescope Steel Ltd",
+    "productType": "Stock"
+  },
+  "MPL": {
+    "name": "Medibank Private Ltd",
+    "productType": "Stock"
+  },
+  "NEM": {
+    "name": "Newmont Corporation",
+    "productType": "Stock"
+  },
+  "RHC": {
+    "name": "Ramsay Health Care Ltd",
     "productType": "Stock"
   },
   "WTC": {
     "name": "Wisetech Global Ltd",
     "productType": "Stock"
   },
+  "QAN": {
+    "name": "Qantas Airways Ltd",
+    "productType": "Stock"
+  },
+  "ASX": {
+    "name": "ASX Ltd",
+    "productType": "Stock"
+  },
+  "TLC": {
+    "name": "The Lottery Corporation Ltd",
+    "productType": "Stock"
+  },
+  "LYC": {
+    "name": "Lynas Rare EARTHS Ltd",
+    "productType": "Stock"
+  },
+  "CDA": {
+    "name": "Codan Ltd",
+    "productType": "Stock"
+  },
+  "AIA": {
+    "name": "Auckland International Airport Ltd",
+    "productType": "Stock"
+  },
+  "VCX": {
+    "name": "Vicinity Centres",
+    "productType": "Stock"
+  },
+  "A200": {
+    "name": "Betashares Australia 200 ETF",
+    "productType": "Fund"
+  },
+  "JHX": {
+    "name": "James Hardie Industries Plc",
+    "productType": "Stock"
+  },
+  "ORI": {
+    "name": "Orica Ltd",
+    "productType": "Stock"
+  },
+  "REH": {
+    "name": "Reece Ltd",
+    "productType": "Stock"
+  },
+  "TNE": {
+    "name": "Technology One Ltd",
+    "productType": "Stock"
+  },
+  "ALQ": {
+    "name": "Als Ltd",
+    "productType": "Stock"
+  },
   "XRO": {
     "name": "Xero Ltd",
+    "productType": "Stock"
+  },
+  "SGP": {
+    "name": "Stockland",
+    "productType": "Stock"
+  },
+  "IFT": {
+    "name": "Infratil Ltd",
+    "productType": "Stock"
+  },
+  "ALD": {
+    "name": "Ampol Ltd",
+    "productType": "Stock"
+  },
+  "IOZ": {
+    "name": "iShares Core S&P/ASX 200 ETF",
+    "productType": "Fund"
+  },
+  "SFR": {
+    "name": "Sandfire Resources Ltd",
+    "productType": "Stock"
+  },
+  "PLS": {
+    "name": "PLS Group Ltd",
+    "productType": "Stock"
+  },
+  "QUAL": {
+    "name": "Vaneck MSCI International Quality ETF",
+    "productType": "Fund"
+  },
+  "NDQ": {
+    "name": "Betashares Nasdaq 100 ETF",
+    "productType": "Fund"
+  },
+  "LNW": {
+    "name": "Light & Wonder Inc",
+    "productType": "Stock"
+  },
+  "SHL": {
+    "name": "Sonic Healthcare Ltd",
+    "productType": "Stock"
+  },
+  "CAR": {
+    "name": "CAR Group Ltd",
+    "productType": "Stock"
+  },
+  "CHC": {
+    "name": "Charter Hall Group",
+    "productType": "Stock"
+  },
+  "MIN": {
+    "name": "Mineral Resources Ltd",
+    "productType": "Stock"
+  },
+  "GPT": {
+    "name": "GPT Group",
+    "productType": "Stock"
+  },
+  "COH": {
+    "name": "Cochlear Ltd",
+    "productType": "Stock"
+  },
+  "GMD": {
+    "name": "Genesis Minerals Ltd",
+    "productType": "Stock"
+  },
+  "AMC": {
+    "name": "Amcor Plc",
     "productType": "Stock"
   },
   "YAL": {
     "name": "Yancoal Australia Ltd",
     "productType": "Stock"
   },
-  "Z1P": {
+  "PRU": {
+    "name": "Perseus Mining Ltd",
+    "productType": "Stock"
+  },
+  "AFI": {
+    "name": "Australian Foundation Investment Company Ltd",
+    "productType": "Stock"
+  },
+  "VHY": {
+    "name": "Vanguard Australian Shares High Yield ETF",
+    "productType": "Fund"
+  },
+  "VGAD": {
+    "name": "Vanguard MSCI INDEX International Shares (Hedged) ETF",
+    "productType": "Fund"
+  },
+  "JBH": {
+    "name": "JB Hi-Fi Ltd",
+    "productType": "Stock"
+  },
+  "MCY": {
+    "name": "Mercury NZ Ltd",
+    "productType": "Stock"
+  },
+  "CGF": {
+    "name": "Challenger Ltd",
+    "productType": "Stock"
+  },
+  "VTS": {
+    "name": "Vanguard Morningstar US Total MKT Shares INDEX ETF",
+    "productType": "Fund"
+  },
+  "TPG": {
+    "name": "TPG Telecom Ltd",
+    "productType": "Stock"
+  },
+  "DACE": {
+    "name": "Dimensional Australian Core Equity Trust - Active ETF",
+    "productType": "Fund"
+  },
+  "DNL": {
+    "name": "Dyno Nobel Ltd",
+    "productType": "Stock"
+  },
+  "NXT": {
+    "name": "NEXTDC Ltd",
+    "productType": "Stock"
+  },
+  "MGR": {
+    "name": "Mirvac Group",
+    "productType": "Stock"
+  },
+  "RMS": {
+    "name": "Ramelius Resources Ltd",
+    "productType": "Stock"
+  },
+  "ARG": {
+    "name": "Argo Investments Ltd",
+    "productType": "Stock"
+  },
+  "CWY": {
+    "name": "Cleanaway Waste Management Ltd",
+    "productType": "Stock"
+  },
+  "GGP": {
+    "name": "Greatland Resources Ltd",
+    "productType": "Stock"
+  },
+  "STW": {
+    "name": "State Street SPDR S&P/ASX 200 ETF",
+    "productType": "Fund"
+  },
+  "WHC": {
+    "name": "Whitehaven Coal Ltd",
+    "productType": "Stock"
+  },
+  "CMM": {
+    "name": "Capricorn Metals Ltd",
+    "productType": "Stock"
+  },
+  "ANN": {
+    "name": "Ansell Ltd",
+    "productType": "Stock"
+  },
+  "SDF": {
+    "name": "Steadfast Group Ltd",
+    "productType": "Stock"
+  },
+  "VEU": {
+    "name": "Vanguard All-World Ex-US Shares INDEX ETF",
+    "productType": "Fund"
+  },
+  "AZJ": {
+    "name": "Aurizon Holdings Ltd",
+    "productType": "Stock"
+  },
+  "VAU": {
+    "name": "Vault Minerals Ltd",
+    "productType": "Stock"
+  },
+  "IOO": {
+    "name": "iShares Global 100 ETF",
+    "productType": "Fund"
+  },
+  "DXS": {
+    "name": "Dexus",
+    "productType": "Stock"
+  },
+  "AGL": {
+    "name": "AGL Energy Ltd",
+    "productType": "Stock"
+  },
+  "MEZ": {
+    "name": "Meridian Energy Ltd",
+    "productType": "Stock"
+  },
+  "BEN": {
+    "name": "Bendigo and Adelaide Bank Ltd",
+    "productType": "Stock"
+  },
+  "AMP": {
+    "name": "AMP Ltd",
+    "productType": "Stock"
+  },
+  "GOLD": {
+    "name": "Global X Physical Gold Structured",
+    "productType": "Stock"
+  },
+  "DGCE": {
+    "name": "Dimensional Global Core Equity Trust Unhedged - Active ETF",
+    "productType": "Fund"
+  },
+  "EDV": {
+    "name": "Endeavour Group Ltd",
+    "productType": "Stock"
+  },
+  "BGBL": {
+    "name": "Betashares Global Shares ETF",
+    "productType": "Fund"
+  },
+  "ALX": {
+    "name": "Atlas Arteria",
+    "productType": "Stock"
+  },
+  "RRL": {
+    "name": "Regis Resources Ltd",
+    "productType": "Stock"
+  },
+  "HUB": {
+    "name": "HUB24 Ltd",
+    "productType": "Stock"
+  },
+  "TLX": {
+    "name": "TELIX Pharmaceuticals Ltd",
+    "productType": "Stock"
+  },
+  "NHC": {
+    "name": "New Hope Corporation Ltd",
+    "productType": "Stock"
+  },
+  "VEA": {
+    "name": "Viva Energy Group Ltd",
+    "productType": "Stock"
+  },
+  "APE": {
+    "name": "Eagers Automotive Ltd",
+    "productType": "Stock"
+  },
+  "HVN": {
+    "name": "Harvey Norman Holdings Ltd",
+    "productType": "Stock"
+  },
+  "AAA": {
+    "name": "Betashares Australian High Interest Cash ETF",
+    "productType": "Fund"
+  },
+  "A2M": {
+    "name": "The a2 Milk Company Ltd",
+    "productType": "Stock"
+  },
+  "VBND": {
+    "name": "Vanguard Global Aggregate Bond INDEX (Hedged) ETF",
+    "productType": "Fund"
+  },
+  "TWE": {
+    "name": "Treasury Wine Estates Ltd",
+    "productType": "Stock"
+  },
+  "VNT": {
+    "name": "Ventia Services Group Ltd",
+    "productType": "Stock"
+  },
+  "WGX": {
+    "name": "Westgold Resources Ltd",
+    "productType": "Stock"
+  },
+  "SEK": {
+    "name": "Seek Ltd",
+    "productType": "Stock"
+  },
+  "BRG": {
+    "name": "Breville Group Ltd",
+    "productType": "Stock"
+  },
+  "BOQ": {
+    "name": "Bank of Queensland Ltd",
+    "productType": "Stock"
+  },
+  "WOR": {
+    "name": "Worley Ltd",
+    "productType": "Stock"
+  },
+  "DOW": {
+    "name": "Downer Edi Ltd",
+    "productType": "Stock"
+  },
+  "EMR": {
+    "name": "Emerald Resources NL",
+    "productType": "Stock"
+  },
+  "PDI": {
+    "name": "PDI Gold Ltd",
+    "productType": "Stock"
+  },
+  "IHVV": {
+    "name": "iShares S&P 500 Aud Hedged ETF",
+    "productType": "Fund"
+  },
+  "DFGH": {
+    "name": "Dimensional Global Core Equity Trust Aud Hedged - Active ETF",
+    "productType": "Fund"
+  },
+  "XYZ": {
+    "name": "Block, Inc",
+    "productType": "Stock"
+  },
+  "WAF": {
+    "name": "West African Resources Ltd",
+    "productType": "Stock"
+  },
+  "VDHG": {
+    "name": "Vanguard Diversified High Growth INDEX ETF",
+    "productType": "Fund"
+  },
+  "IGO": {
+    "name": "IGO Ltd",
+    "productType": "Stock"
+  },
+  "SGM": {
+    "name": "Sims Ltd",
+    "productType": "Stock"
+  },
+  "NWL": {
+    "name": "Netwealth Group Ltd",
+    "productType": "Stock"
+  },
+  "SUBD": {
+    "name": "Vaneck Australian Subordinated Debt ETF",
+    "productType": "Fund"
+  },
+  "VAF": {
+    "name": "Vanguard Australian Fixed Interest INDEX ETF",
+    "productType": "Fund"
+  },
+  "ETHI": {
+    "name": "Betashares Global Sustainability Leaders ETF",
+    "productType": "Fund"
+  },
+  "V1AC": {
+    "name": "Vinva Global Alpha Fund - Active ETF",
+    "productType": "Fund"
+  },
+  "CEN": {
+    "name": "Contact Energy Ltd",
+    "productType": "Stock"
+  },
+  "AUB": {
+    "name": "AUB Group Ltd",
+    "productType": "Stock"
+  },
+  "IAF": {
+    "name": "iShares Core Composite Bond ETF",
+    "productType": "Fund"
+  },
+  "MP1": {
+    "name": "Megaport Ltd",
+    "productType": "Stock"
+  },
+  "BFL": {
+    "name": "BSP Financial Group Ltd",
+    "productType": "Stock"
+  },
+  "PNI": {
+    "name": "Pinnacle Investment Management Group Ltd",
+    "productType": "Stock"
+  },
+  "RWC": {
+    "name": "Reliance Worldwide Corporation Ltd",
+    "productType": "Stock"
+  },
+  "MTS": {
+    "name": "Metcash Ltd",
+    "productType": "Stock"
+  },
+  "EBO": {
+    "name": "Ebos Group Ltd",
+    "productType": "Stock"
+  },
+  "HYGG": {
+    "name": "Hyperion Global Growth Companies Fund - Active ETF",
+    "productType": "Fund"
+  },
+  "MVW": {
+    "name": "Vaneck Australian EQUAL Weight ETF",
+    "productType": "Fund"
+  },
+  "PDN": {
+    "name": "Paladin Energy Ltd",
+    "productType": "Stock"
+  },
+  "NHF": {
+    "name": "Nib Holdings Ltd",
+    "productType": "Stock"
+  },
+  "GQG": {
+    "name": "GQG Partners Inc",
+    "productType": "Stock"
+  },
+  "NWH": {
+    "name": "NRW Holdings Ltd",
+    "productType": "Stock"
+  },
+  "SUL": {
+    "name": "Super Retail Group Ltd",
+    "productType": "Stock"
+  },
+  "MFF": {
+    "name": "MFF Capital Investments Ltd",
+    "productType": "Stock"
+  },
+  "HGBL": {
+    "name": "Betashares Global Shares Currency Hedged ETF",
+    "productType": "Fund"
+  },
+  "SPK": {
+    "name": "Spark New Zealand Ltd",
+    "productType": "Stock"
+  },
+  "NIC": {
+    "name": "Nickel Industries Ltd",
+    "productType": "Stock"
+  },
+  "MND": {
+    "name": "Monadelphous Group Ltd",
+    "productType": "Stock"
+  },
+  "L1G": {
+    "name": "L1 Group Ltd",
+    "productType": "Stock"
+  },
+  "CNU": {
+    "name": "Chorus Ltd",
+    "productType": "Stock"
+  },
+  "DBI": {
+    "name": "Dalrymple Bay Infrastructure Ltd",
+    "productType": "Stock"
+  },
+  "LOV": {
+    "name": "Lovisa Holdings Ltd",
+    "productType": "Stock"
+  },
+  "SRL": {
+    "name": "Sunrise Energy Metals Ltd",
+    "productType": "Stock"
+  },
+  "FBU": {
+    "name": "Fletcher Building Ltd",
+    "productType": "Stock"
+  },
+  "DDR": {
+    "name": "Dicker Data Ltd",
+    "productType": "Stock"
+  },
+  "BWP": {
+    "name": "BWP Group",
+    "productType": "Stock"
+  },
+  "LSF": {
+    "name": "L1 Long Short Fund Ltd",
+    "productType": "Fund"
+  },
+  "VAP": {
+    "name": "Vanguard Australian Property Securities INDEX ETF",
+    "productType": "Fund"
+  },
+  "QHAL": {
+    "name": "Vaneck MSCI International Quality (Aud Hedged) ETF",
+    "productType": "Fund"
+  },
+  "ZIP": {
     "name": "ZIP Co Ltd",
     "productType": "Stock"
   },
-  "ZIM": {
-    "name": "Zimplats Holdings Ltd",
+  "GYG": {
+    "name": "Guzman Y GOMEZ Ltd",
+    "productType": "Stock"
+  },
+  "OBM": {
+    "name": "Ora Banda Mining Ltd",
+    "productType": "Stock"
+  },
+  "CSC": {
+    "name": "Capstone Copper Corp",
+    "productType": "Stock"
+  },
+  "TEA": {
+    "name": "Tasmea Ltd",
+    "productType": "Stock"
+  },
+  "AUI": {
+    "name": "Australian United Investment Company Ltd",
+    "productType": "Stock"
+  },
+  "GNE": {
+    "name": "Genesis Energy Ltd",
+    "productType": "Stock"
+  },
+  "RGN": {
+    "name": "Region Group",
+    "productType": "Stock"
+  },
+  "SMR": {
+    "name": "Stanmore Resources Ltd",
+    "productType": "Stock"
+  },
+  "NEU": {
+    "name": "Neuren Pharmaceuticals Ltd",
+    "productType": "Stock"
+  },
+  "MFG": {
+    "name": "Magellan Financial Group Ltd",
+    "productType": "Stock"
+  },
+  "HBRD": {
+    "name": "Betashares Australian Credit Income Active ETF",
+    "productType": "Fund"
+  },
+  "AAI": {
+    "name": "Alcoa Corporation",
+    "productType": "Stock"
+  },
+  "FLT": {
+    "name": "Flight Centre Travel Group Limited",
+    "productType": "Stock"
+  },
+  "EVT": {
+    "name": "EVT Ltd",
+    "productType": "Stock"
+  },
+  "4DX": {
+    "name": "4DMEDICAL Ltd",
+    "productType": "Stock"
+  },
+  "ALK": {
+    "name": "Alkane Resources Ltd",
+    "productType": "Stock"
+  },
+  "QPON": {
+    "name": "Betashares Australian Bank Senior Floating Rate Bond ETF",
+    "productType": "Fund"
+  },
+  "MSB": {
+    "name": "Mesoblast Ltd",
+    "productType": "Stock"
+  },
+  "CLW": {
+    "name": "Charter Hall Long Wale REIT",
+    "productType": "Stock"
+  },
+  "RSG": {
+    "name": "Resolute Mining Ltd",
+    "productType": "Stock"
+  },
+  "ILU": {
+    "name": "Iluka Resources Ltd",
     "productType": "Stock"
   }
 }
