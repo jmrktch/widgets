@@ -484,8 +484,21 @@ async function collectScansWithPage(page, timing = {}) {
       const mms = injector.get("marketMoversService");
       const scanning = injector.get("scanningService");
       const filters = injector.get("moversFilters");
-      const mover = mms.getMoverByName?.(scanName) || (mms.getMovers?.() || []).find((item) => clean(item.name).toLowerCase() === clean(scanName).toLowerCase());
-      if (!mover) throw new Error(`Scan not found: ${scanName}`);
+      const findMover = () => mms.getMoverByName?.(scanName)
+        || (mms.getMovers?.() || []).find((item) => clean(item.name).toLowerCase() === clean(scanName).toLowerCase());
+      // Focus sends built-in presets before a user's saved/custom movers.
+      // Sentiment scans are currently saved movers, so cloud sessions can need
+      // a short additional wait after the preset catalogue is usable.
+      let mover = findMover();
+      const moverDeadline = Date.now() + Math.max(5_000, Number(window.__FOCUS_MOVER_READY_TIMEOUT_MS || 45_000));
+      while (!mover && Date.now() < moverDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        mover = findMover();
+      }
+      if (!mover) {
+        const available = (mms.getMovers?.() || []).map((item) => `${item.id}:${item.name}`).join(", ");
+        throw new Error(`Scan not found after waiting for saved movers: ${scanName}. Available: ${available}`);
+      }
 
       // Only the specified scans use an explicit market-cap universe. "Descending"
       // is Focus's enum for Top N by market cap; all other scans retain their
