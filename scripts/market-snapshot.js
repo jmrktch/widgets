@@ -282,7 +282,7 @@ async function collectScans() {
   const limit = Math.max(1, Number(process.env.MARKET_SNAPSHOT_SCAN_LIMIT || 10));
   const scanNames = [
     "top-gainers", "top-losers", "gapped-up", "gapped-down", "trading-halt", "52-week-high", "52-week-low",
-    "rsi-oversold", "rsi-overbought", "high-roe-low-dtc", "positive-sentiment", "negative-sentiment"
+    "rsi-oversold", "rsi-overbought", "high-roe-low-dtc"
   ];
   const scans = {};
   for (const name of scanNames) {
@@ -295,7 +295,7 @@ async function collectScans() {
   const profile = fs.existsSync(profilePath) ? readJson(profilePath) : null;
   return { file: writeJsonAtomic("scans.json", {
     extractedAt: new Date().toISOString(),
-    scope: "Focus Australia Scan Management presets and ranking; 52-week and sentiment scans target the top 500 by market cap, while all other scans retain their native platform targets.",
+    scope: "Focus Australia Scan Management presets and ranking; 52-week scans target the top 500 by market cap, while all other scans retain their native platform targets.",
     scans
   }), count: scanNames.length, rowsPerScan: limit, profile: { childDurationMs: profile?.totalMs || 0, ...(profile || {}) } };
 }

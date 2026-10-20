@@ -38,26 +38,20 @@ const ALL_SCAN_NAMES = [
   "52 Week Low",
   "RSI Oversold",
   "RSI Overbought",
-  "High RoE + low Dtc",
-  "Positive Sentiment",
-  "Negative Sentiment"
+  "High RoE + low Dtc"
 ];
 // These scans should explicitly use Focus's market-cap universe control.
 // Every other scan retains its native Focus Scan Management configuration.
 const MARKET_CAP_TOP_500_SCANS = new Set([
   "52 Week High",
-  "52 Week Low",
-  "Positive Sentiment",
-  "Negative Sentiment"
+  "52 Week Low"
 ]);
 // For these lists, publish the qualifying companies largest-first. This is
 // deliberately separate from the platform's scan rank, which decides whether
 // a company belongs in the result set.
 const MARKET_CAP_OUTPUT_ORDER_SCANS = new Set([
   "52 Week High",
-  "52 Week Low",
-  "Positive Sentiment",
-  "Negative Sentiment"
+  "52 Week Low"
 ]);
 // TMX does not provide the volume data required for a trustworthy unusual-volume scan.
 const SCAN_NAMES = process.argv.includes("--all")
