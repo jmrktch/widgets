@@ -2,7 +2,7 @@ require("dotenv").config();
 
 const fs = require("fs");
 const path = require("path");
-const { createFocusBrowserSession, getFocusBaseUrl, logPageSnapshot } = require("../lib/focus-browser-session");
+const { createFocusBrowserSession, getFocusBaseUrl, loginFocusPage, logPageSnapshot } = require("../lib/focus-browser-session");
 
 const ROOT = path.join(__dirname, "..");
 const DEBUG_OUTPUT = process.argv.includes("--debug");
@@ -70,20 +70,30 @@ function outputFileFor(scanName) {
 }
 
 async function openFocusHome(page) {
-  await page.goto(new URL("/#/", `${getFocusBaseUrl()}/`).toString(), {
-    waitUntil: "domcontentloaded",
-    timeout: 60_000
-  });
-  await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
-  // The SPA can show "Connecting..." briefly after DOM ready. Its concrete
-  // preset lookup is the reliable readiness signal (normally ~3 seconds).
-  await page.waitForFunction(() => {
-    const root = document.querySelector("[ng-app]") || document.body;
-    const injector = window.angular?.element?.(root)?.injector?.();
-    const movers = injector?.get?.("marketMoversService");
-    return Boolean(movers?.getMoverByName?.("Top Gainers"));
-  }, null, { timeout: 10_000 }).catch(() => {});
-  await page.waitForTimeout(500);
+  const url = new URL("/#/", `${getFocusBaseUrl()}/`).toString();
+  const readyTimeoutMs = Math.max(15_000, Number(process.env.FOCUS_APP_READY_TIMEOUT_MS || 60_000));
+
+  // Do not use networkidle here: the live SignalR connection can keep it
+  // pending on cloud runners even after the app is usable.
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 }).catch(() => {});
+    try {
+      await page.waitForFunction(() => {
+        const root = document.querySelector("[ng-app]") || document.body;
+        const injector = window.angular?.element?.(root)?.injector?.();
+        const movers = injector?.get?.("marketMoversService");
+        return Boolean(movers?.getMoverByName?.("Top Gainers"));
+      }, null, { timeout: readyTimeoutMs });
+      await page.waitForTimeout(500);
+      return;
+    } catch (error) {
+      await logPageSnapshot(page, `focus-home-not-ready-attempt-${attempt}`);
+      if (/\/login(?:[/?#]|$)/i.test(page.url())) {
+        await loginFocusPage(page);
+      }
+      if (attempt === 2) throw error;
+    }
+  }
 }
 
 async function collectScansWithPage(page, timing = {}) {

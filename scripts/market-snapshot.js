@@ -361,6 +361,9 @@ async function runSnapshot() {
   manifest.ok = Object.values(manifest.datasets).every((dataset) => dataset.ok);
   writeJsonAtomic("manifest.json", manifest);
   console.log(`[market-snapshot] complete ok=${manifest.ok} in ${Date.now() - new Date(manifest.generatedAt).getTime()}ms`);
+  if (!manifest.ok) {
+    throw new Error("Snapshot is incomplete; preserving the previous public deployment.");
+  }
   return manifest;
 }
 
