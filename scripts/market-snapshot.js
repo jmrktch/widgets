@@ -91,6 +91,7 @@ async function ensureSnapshotAuthentication() {
 function writeJsonAtomic(name, value) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   const target = path.join(OUTPUT_DIR, name);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
   const temporary = `${target}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   fs.renameSync(temporary, target);
@@ -244,14 +245,20 @@ async function collectBenchmarks() {
   // Keep an explicit public record when Focus has no quote/candle data for a
   // requested instrument (currently AU1YY and US1YY), instead of suppressing
   // the usable GOLD/OOO data and failing the complete snapshot.
+  const extractedAt = new Date().toISOString();
+  for (const symbol of BENCHMARKS) {
+    const quote = values.find((value) => value.ticker === symbol) || null;
+    const candles5m5d = charts5m5d.find((value) => value.ticker === symbol) || null;
+    writeJsonAtomic(`benchmarks/${symbol}.json`, {
+      extractedAt,
+      symbol,
+      quote,
+      candles5m5d,
+      unavailable: unavailable.find((item) => item.symbol === symbol) || null
+    });
+  }
   return {
-    file: writeJsonAtomic("benchmarks.json", {
-      extractedAt: new Date().toISOString(),
-      requestedSymbols: BENCHMARKS,
-      values,
-      charts5m5d,
-      unavailable
-    }),
+    files: BENCHMARKS.map((symbol) => `benchmarks/${symbol}.json`),
     count: values.length,
     chartCount: charts5m5d.length,
     unavailable
@@ -270,7 +277,13 @@ async function collectFastSections() {
   };
   const profilePath = path.join(ROOT, "public", "fast-brief-profile.json");
   const profile = fs.existsSync(profilePath) ? readJson(profilePath) : null;
-  return { file: writeJsonAtomic("market-content.json", output), profile: { childDurationMs: child.durationMs, ...(profile || {}) }, counts: {
+  const files = Object.entries({
+    media: output.media,
+    raises: output.raises,
+    dividends: output.dividends,
+    heatmap: output.heatmap
+  }).map(([name, value]) => writeJsonAtomic(`content/${name}.json`, value));
+  return { files, profile: { childDurationMs: child.durationMs, ...(profile || {}) }, counts: {
     media: output.media.items?.length || 0,
     raises: output.raises.items?.length || 0,
     dividends: output.dividends.items?.length || 0,
@@ -293,11 +306,57 @@ async function collectScans() {
   }
   const profilePath = path.join(ROOT, "public", "direct-scan-profile.json");
   const profile = fs.existsSync(profilePath) ? readJson(profilePath) : null;
-  return { file: writeJsonAtomic("scans.json", {
-    extractedAt: new Date().toISOString(),
-    scope: "Focus Australia Scan Management presets and ranking; 52-week scans target the top 500 by market cap, while all other scans retain their native platform targets.",
-    scans
-  }), count: scanNames.length, rowsPerScan: limit, profile: { childDurationMs: profile?.totalMs || 0, ...(profile || {}) } };
+  const files = Object.entries(scans).map(([name, scan]) => writeJsonAtomic(`scans/${name}.json`, scan));
+  return { files, count: scanNames.length, rowsPerScan: limit, profile: { childDurationMs: profile?.totalMs || 0, ...(profile || {}) } };
+}
+
+function publishTickerResources(symbols, quotes, charts) {
+  const extractedAt = new Date().toISOString();
+  const quotesByTicker = new Map(quotes.map((quote) => [quote.ticker, quote]));
+  const chartsByTicker = new Map(charts.map((chart) => [chart.ticker, chart]));
+  const publishedSymbols = [];
+
+  for (const symbol of symbols) {
+    const quote = quotesByTicker.get(symbol);
+    const candles5m5d = chartsByTicker.get(symbol);
+    // A self-contained resource is only useful if its quote and chart agree.
+    // Missing instruments remain visible in universe.json rather than being
+    // represented by a misleading partial payload.
+    if (!quote || !candles5m5d) continue;
+    writeJsonAtomic(`tickers/${symbol}.json`, {
+      extractedAt,
+      symbol,
+      quote,
+      candles5m5d
+    });
+    publishedSymbols.push(symbol);
+  }
+
+  writeJsonAtomic("universe.json", {
+    extractedAt,
+    name: "ASX Top 200 (supplied universe)",
+    requestedSymbols: symbols,
+    publishedSymbols,
+    unavailableSymbols: symbols.filter((symbol) => !publishedSymbols.includes(symbol)),
+    tickerResource: "tickers/{symbol}.json"
+  });
+  return { files: publishedSymbols.length, unavailable: symbols.length - publishedSymbols.length };
+}
+
+function removeLegacyCombinedResources() {
+  // These payloads duplicated the resource-oriented files and made the candle
+  // endpoint too large for normal browser viewing. Remove them only after a
+  // complete replacement snapshot has been written.
+  for (const name of [
+    "asx200-quotes.json",
+    "asx200-candles-5m-5d.json",
+    "benchmarks.json",
+    "market-content.json",
+    "scans.json"
+  ]) {
+    const target = path.join(OUTPUT_DIR, name);
+    if (fs.existsSync(target)) fs.rmSync(target);
+  }
 }
 
 async function runSnapshot() {
@@ -329,7 +388,7 @@ async function runSnapshot() {
   const authentication = await ensureSnapshotAuthentication();
   const universe = new Set(symbols);
   const manifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
     marketTimezone: MARKET_TIMEZONE,
     universe: { name: "ASX Top 200 (supplied universe)", symbols: symbols.length },
@@ -338,19 +397,27 @@ async function runSnapshot() {
     datasets: {}
   };
 
+  let quoteResult = null;
+  let candleResult = null;
   await runTask(manifest, "quotes", async () => {
     const result = await collectInBatches(symbols, fetchQuotesWithContractRetry, "quotes");
     if (result.values.length / symbols.length < MIN_SUCCESS_RATIO) {
       throw new Error(`Quote success ratio ${result.values.length}/${symbols.length} below threshold. Missing sample: ${result.failures.slice(0, 20).join(", ")}`);
     }
-    return { file: writeJsonAtomic("asx200-quotes.json", { extractedAt: new Date().toISOString(), delayedByMinutes: Number(process.env.DELAY_MINUTES || 20), quotes: result.values }), count: result.values.length, failures: result.failures, batchTimings: result.batchTimings, collectionMs: result.durationMs };
+    quoteResult = result;
+    return { count: result.values.length, failures: result.failures, batchTimings: result.batchTimings, collectionMs: result.durationMs };
   });
   await runTask(manifest, "candles5m5d", async () => {
     const result = await collectInBatches(symbols, fetchChartsWithContractRetry, "5m candles");
     if (result.values.length / symbols.length < MIN_SUCCESS_RATIO) {
       throw new Error(`Candle success ratio ${result.values.length}/${symbols.length} below threshold. Missing sample: ${result.failures.slice(0, 20).join(", ")}`);
     }
-    return { file: writeJsonAtomic("asx200-candles-5m-5d.json", { extractedAt: new Date().toISOString(), interval: "5m", range: "5D", charts: result.values }), count: result.values.length, failures: result.failures, batchTimings: result.batchTimings, collectionMs: result.durationMs };
+    candleResult = result;
+    return { count: result.values.length, failures: result.failures, batchTimings: result.batchTimings, collectionMs: result.durationMs };
+  });
+  await runTask(manifest, "tickerResources", async () => {
+    if (!quoteResult || !candleResult) throw new Error("Cannot publish ticker resources without completed quote and candle collections.");
+    return publishTickerResources(symbols, quoteResult.values, candleResult.values);
   });
   await runTask(manifest, "benchmarks", collectBenchmarks);
   await runTask(manifest, "marketContent", collectFastSections);
@@ -359,6 +426,7 @@ async function runSnapshot() {
   manifest.finishedAt = new Date().toISOString();
   manifest.totalDurationMs = Date.now() - new Date(manifest.generatedAt).getTime();
   manifest.ok = Object.values(manifest.datasets).every((dataset) => dataset.ok);
+  if (manifest.ok) removeLegacyCombinedResources();
   writeJsonAtomic("manifest.json", manifest);
   console.log(`[market-snapshot] complete ok=${manifest.ok} in ${Date.now() - new Date(manifest.generatedAt).getTime()}ms`);
   if (!manifest.ok) {
