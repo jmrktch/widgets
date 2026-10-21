@@ -1,0 +1,19 @@
+{
+  "name": "marketech-focus-snapshot-scheduler",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-21",
+  "triggers": {
+    "crons": ["*/20 * * * *"]
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    }
+  }
+}
