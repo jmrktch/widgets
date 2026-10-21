@@ -1,0 +1,21 @@
+name: Scheduled Trigger Probe
+
+on:
+  workflow_dispatch:
+  # Temporary diagnostic: 15:00-16:59 Sydney time on 21 October 2026.
+  # This performs no collection and will be removed after today's test.
+  schedule:
+    - cron: "*/5 15-16 21 10 *"
+      timezone: Australia/Sydney
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record scheduled trigger time
+        run: |
+          echo "event=${{ github.event_name }}"
+          date --utc --iso-8601=seconds
