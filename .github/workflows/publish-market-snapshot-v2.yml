@@ -1,3 +1,4 @@
+# v2 filename intentionally creates a fresh GitHub Actions schedule registration.
 name: Publish Market Snapshot
 
 on:
