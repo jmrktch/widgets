@@ -3,10 +3,12 @@ name: Publish Market Snapshot
 on:
   workflow_dispatch:
   schedule:
-    # Sydney market window: 09:30 through 16:50, Monday to Friday.
-    - cron: "30-59/10 9 * * 1-5"
+    # Sydney market window: 09:20, 09:40, then every 20 minutes through
+    # 16:40, Monday to Friday. The 20-minute offset means later runs land
+    # cleanly on :00, :20 and :40.
+    - cron: "20,40 9 * * 1-5"
       timezone: Australia/Sydney
-    - cron: "*/10 10-16 * * 1-5"
+    - cron: "0,20,40 10-16 * * 1-5"
       timezone: Australia/Sydney
 
 concurrency:
@@ -65,7 +67,7 @@ jobs:
           COOKIE_UPDATE_TOKEN: ${{ secrets.COOKIE_UPDATE_TOKEN }}
           COOKIE_UPDATE_SOURCE: github-actions-snapshot
           MARKET_SNAPSHOT_OUTPUT_DIR: site/snapshot/latest
-          MARKET_SNAPSHOT_INTERVAL_MS: 600000
+          MARKET_SNAPSHOT_INTERVAL_MS: 1200000
           MARKET_SNAPSHOT_OPEN_HOUR: 9
           MARKET_SNAPSHOT_OPEN_MINUTE: 30
           MARKET_SNAPSHOT_CLOSE_HOUR: 17
