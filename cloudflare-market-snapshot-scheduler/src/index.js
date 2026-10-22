@@ -56,7 +56,13 @@ async function dispatchWorkflow(env, attempt = 1) {
     return dispatchWorkflow(env, 2);
   }
 
-  throw new Error(`GitHub workflow dispatch failed with HTTP ${response.status}`);
+  // GitHub error payloads are small, structured diagnostics. Record a bounded
+  // excerpt to distinguish token, repository, and workflow authorization
+  // failures without ever logging the secret itself.
+  const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 500);
+  throw new Error(
+    `GitHub workflow dispatch failed with HTTP ${response.status}: ${detail}`,
+  );
 }
 
 export default {
