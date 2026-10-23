@@ -47,11 +47,6 @@ jobs:
         # prefer cached tarballs so scheduled runs spend their time collecting.
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Install Chromium Linux dependencies
-        # Chromium itself is installed by postinstall and restored from the
-        # cache above. System packages belong to the disposable runner.
-        run: npx playwright install-deps chromium
-
       - name: Collect the market snapshot
         env:
           CI: true
