@@ -8,9 +8,11 @@ const { collectScansWithPage } = require("./probe-direct-scan-json");
 const ROOT = path.join(__dirname, "..");
 const DEBUG_OUTPUT = process.argv.includes("--debug");
 const HEATMAP_ONLY = process.argv.includes("--heatmap-only");
+const FORCE_HEATMAP_MOVER_ID = process.argv.includes("--force-heatmap-mover-id");
 const INCLUDE_SCANS = process.argv.includes("--include-scans");
 const LIMIT = Number((process.argv.find((arg) => arg.startsWith("--limit=")) || "--limit=5").split("=")[1] || 5);
 const DIVIDEND_WINDOW_DAYS = Math.max(1, Number((process.argv.find((arg) => arg.startsWith("--dividend-days=")) || "--dividend-days=1").split("=")[1] || 1));
+const HEATMAP_MOVER_ID = "RpED0szHzb";
 
 const OUTPUTS = {
   media: path.join(ROOT, "public", "top-media-fast.json"),
@@ -61,7 +63,7 @@ async function main() {
     await openFocusHome(session.page);
     const homeReadyAt = Date.now();
 
-    const output = await session.page.evaluate(async ({ limit, dividendWindowDays, debugOutput, heatmapOnly }) => {
+    const output = await session.page.evaluate(async ({ limit, dividendWindowDays, debugOutput, heatmapOnly, heatmapMoverId, forceHeatmapMoverId }) => {
       const startedAt = Date.now();
 
       function mapMessages(payload) {
@@ -788,9 +790,19 @@ async function main() {
           const movers = mms?.getMovers?.() || [];
           moverNames = movers.map((item) => item?.name).filter(Boolean);
           mover = mms?.getMoverByName?.("Heatmap") || mms?.getMover?.("Heatmap") || movers.find((item) => clean(item.name).toLowerCase() === "heatmap");
+          if (forceHeatmapMoverId && mms?.subscribe) {
+            mover = null;
+            break;
+          }
           if (mms?.subscribe && mover) break;
           await new Promise((resolve) => setTimeout(resolve, 250));
         }
+
+        // Saved mover definitions can take longer than the base mover list to
+        // populate on a fresh hosted browser. This stable Focus profile ID
+        // lets the same marketMoversService subscription proceed directly.
+        const usedConfiguredMoverId = !mover && mms?.subscribe && heatmapMoverId;
+        if (usedConfiguredMoverId) mover = { id: heatmapMoverId, name: "Heatmap" };
 
         if (!mms?.subscribe || !mover) {
           return {
@@ -889,7 +901,7 @@ async function main() {
           totalWeight,
           stocks: sectors.flatMap((sector) => sector.stocks),
           sectors,
-          ...(debugOutput ? { debug: { mover: { id: mover.id, name: mover.name }, packets: rows.packets || [], firstDetail: detailsBySymbol.values().next().value || null } } : {})
+          ...(debugOutput ? { debug: { mover: { id: mover.id, name: mover.name, usedConfiguredMoverId }, packets: rows.packets || [], firstDetail: detailsBySymbol.values().next().value || null } } : {})
         };
       }
 
@@ -923,7 +935,9 @@ async function main() {
       limit: LIMIT,
       dividendWindowDays: DIVIDEND_WINDOW_DAYS,
       debugOutput: DEBUG_OUTPUT,
-      heatmapOnly: HEATMAP_ONLY
+      heatmapOnly: HEATMAP_ONLY,
+      heatmapMoverId: HEATMAP_MOVER_ID,
+      forceHeatmapMoverId: FORCE_HEATMAP_MOVER_ID
     });
 
     if (!HEATMAP_ONLY) {
