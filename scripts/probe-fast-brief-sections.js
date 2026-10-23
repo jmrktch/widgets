@@ -615,7 +615,10 @@ async function main() {
         const todayKey = dateKey(now);
         const targetOffsetDays = dividendTargetOffset(now);
         const targetKey = dateKey(addDays(now, targetOffsetDays));
-        const windowEndKey = dateKey(addDays(now, dividendWindowDays - 1));
+        // The published seven-day view begins tomorrow: it excludes dividends
+        // already ex-date today while retaining seven full upcoming calendar days.
+        const windowStartKey = dateKey(addDays(now, 1));
+        const windowEndKey = dateKey(addDays(now, dividendWindowDays));
         const backfillEndKey = dateKey(addDays(now, 45));
         const bodies = [
           {
@@ -672,12 +675,24 @@ async function main() {
           }
         }
         const allItems = Array.from(rawById.values());
-        const rawItems = allItems.filter((item) => {
+        // Focus can return duplicate records with distinct backend IDs. For the
+        // published calendar, a ticker can appear only once per ex-date.
+        const uniqueByDividendEvent = new Map();
+        for (const item of allItems) {
+          const key = toContractKey(item);
+          const code = firstValue(item, ["Code", "Symbol", "Ticker"]) || key?.Symbol || "";
+          const exDate = firstValue(item, ["ExDate", "exDate", "ExDividendDate"]);
+          const exDateKey = exDate ? dateKey(new Date(exDate)) : "";
+          const eventKey = code && exDateKey ? `${String(code).toUpperCase()}|${exDateKey}` : null;
+          if (!eventKey || !uniqueByDividendEvent.has(eventKey)) uniqueByDividendEvent.set(eventKey || Symbol(), item);
+        }
+        const uniqueItems = Array.from(uniqueByDividendEvent.values());
+        const rawItems = uniqueItems.filter((item) => {
           const exDate = firstValue(item, ["ExDate", "exDate", "ExDividendDate"]);
           if (!exDate) return false;
           const exDateKey = dateKey(new Date(exDate));
           return dividendWindowDays > 1
-            ? exDateKey >= todayKey && exDateKey <= windowEndKey
+            ? exDateKey >= windowStartKey && exDateKey <= windowEndKey
             : exDateKey === targetKey;
         });
         const enrichedItems = await enrichMarketRows(rawItems.map((item) => ({
@@ -719,19 +734,19 @@ async function main() {
           targetExDate: targetKey,
           targetOffsetDays,
           window: {
-            startDate: dividendWindowDays > 1 ? todayKey : targetKey,
+            startDate: dividendWindowDays > 1 ? windowStartKey : targetKey,
             endDate: dividendWindowDays > 1 ? windowEndKey : targetKey,
             days: dividendWindowDays
           },
           selection: {
             rule: dividendWindowDays > 1
-              ? "Stock dividends in the requested ex-date window; select the 10 largest by market cap, then sort by ex-date ascending"
-              : "Stock dividends with target ex-date; select the 10 largest by market cap, then sort by ex-date ascending",
+              ? "De-duplicated stock dividends from tomorrow through the requested ex-date window; select the 10 largest by market cap, then sort by ex-date ascending"
+              : "De-duplicated stock dividends with target ex-date; select the 10 largest by market cap, then sort by ex-date ascending",
             limit: 10
           },
           backfillRange: { startDate: todayKey, endDate: backfillEndKey },
           items,
-          ...(debugOutput ? { debug: { attempts, rawCount: allItems.length, targetRawCount: rawItems.length, firstRaw: rawItems[0] || allItems[0] || null } } : {})
+          ...(debugOutput ? { debug: { attempts, rawCount: allItems.length, deDuplicatedRawCount: uniqueItems.length, targetRawCount: rawItems.length, firstRaw: rawItems[0] || uniqueItems[0] || null } } : {})
         };
       }
 
