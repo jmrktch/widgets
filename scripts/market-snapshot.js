@@ -265,84 +265,12 @@ async function collectBenchmarks() {
   };
 }
 
-function normaliseRenderedHeatmap(rendered) {
-  const seenCodes = new Set();
-  const sourceStocks = Array.isArray(rendered?.stocks) ? rendered.stocks : [];
-  const stocks = sourceStocks
-    .map((stock) => {
-      const code = String(stock?.code || stock?.name || "").trim().toUpperCase();
-      const weight = Number(stock?.marketCap ?? stock?.weight);
-      const changePercent = Number(stock?.changePercent);
-      if (!code || seenCodes.has(code) || !Number.isFinite(weight) || weight <= 0) return null;
-      seenCodes.add(code);
-      return {
-        code,
-        name: stock?.name || code,
-        sector: stock?.sector || "Unknown",
-        industry: stock?.industry || null,
-        subIndustry: stock?.subIndustry || null,
-        weight,
-        marketCap: weight,
-        changePercent: Number.isFinite(changePercent) ? changePercent : null,
-        contractKey: stock?.contractKey || null
-      };
-    })
-    .filter(Boolean);
-  const totalWeight = stocks.reduce((total, stock) => total + stock.weight, 0);
-  const sectorsByName = new Map();
-  for (const stock of stocks) {
-    const name = stock.sector || "Unknown";
-    const sector = sectorsByName.get(name) || { name, weight: 0, count: 0, stocks: [] };
-    sector.weight += stock.weight;
-    sector.count += 1;
-    sector.stocks.push(stock);
-    sectorsByName.set(name, sector);
-  }
-  const sectors = Array.from(sectorsByName.values())
-    .sort((left, right) => right.weight - left.weight)
-    .map((sector, sectorIndex) => ({
-      ...sector,
-      order: sectorIndex,
-      shareOfTotal: totalWeight ? sector.weight / totalWeight : null,
-      stocks: sector.stocks
-        .sort((left, right) => right.weight - left.weight)
-        .map((stock, stockIndex) => ({
-          ...stock,
-          order: stockIndex,
-          shareOfTotal: totalWeight ? stock.weight / totalWeight : null,
-          shareOfSector: sector.weight ? stock.weight / sector.weight : null
-        }))
-    }));
-  return {
-    ok: stocks.length > 0,
-    extractedAt: rendered?.extractedAt || new Date().toISOString(),
-    source: rendered?.source || "Focus rendered Heatmap widget",
-    layoutBasis: {
-      weight: "marketCap",
-      color: "changePercent",
-      sectorShare: "sector.weight / totalWeight",
-      stockShare: "stock.weight / sector.weight"
-    },
-    totalWeight,
-    stocks: sectors.flatMap((sector) => sector.stocks),
-    sectors
-  };
-}
-
 async function collectFastSections() {
   const child = await runNodeScript("scripts/probe-fast-brief-sections.js", ["--limit=200", "--dividend-days=14", "--include-scans"]);
   const source = (name) => readJson(path.join(ROOT, "public", name));
-  let heatmap = source("heatmap-fast.json");
+  const heatmap = source("heatmap-fast.json");
   if (!heatmap.ok || !heatmap.stocks?.length) {
-    // A custom Heatmap mover is a per-browser Focus preference and can be
-    // absent on a fresh hosted runner. The rendered Heatmap widget is the
-    // reliable product-level fallback and does not depend on that preference.
-    console.warn("[market-snapshot] custom Heatmap mover unavailable; extracting the rendered Heatmap widget instead.");
-    await runNodeScript("scripts/probe-heatmap-json.js", []);
-    heatmap = normaliseRenderedHeatmap(source("heatmap.json"));
-  }
-  if (!heatmap.ok || !heatmap.stocks?.length) {
-    throw new Error("Focus Heatmap returned no stocks through either the custom mover or rendered-widget collector.");
+    throw new Error(`Focus Heatmap subscription returned no stocks: ${heatmap.reason || "unknown reason"}`);
   }
   const output = {
     extractedAt: new Date().toISOString(),

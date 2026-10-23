@@ -775,9 +775,22 @@ async function main() {
       }
 
       async function fetchHeatmap() {
-        const injector = window.angular?.element?.(document.querySelector("[ng-app]") || document.body)?.injector?.();
-        const mms = injector?.get?.("marketMoversService");
-        const mover = mms?.getMoverByName?.("Heatmap") || mms?.getMover?.("Heatmap") || mms?.getMovers?.()?.find((item) => clean(item.name).toLowerCase() === "heatmap");
+        // The base movers (for example, Top Gainers) register before custom
+        // movers. A fresh browser can therefore see the service while the
+        // persisted Heatmap mover is still being hydrated.
+        const moverDeadline = Date.now() + 20_000;
+        let mms = null;
+        let mover = null;
+        let moverNames = [];
+        while (Date.now() < moverDeadline) {
+          const injector = window.angular?.element?.(document.querySelector("[ng-app]") || document.body)?.injector?.();
+          mms = injector?.get?.("marketMoversService") || null;
+          const movers = mms?.getMovers?.() || [];
+          moverNames = movers.map((item) => item?.name).filter(Boolean);
+          mover = mms?.getMoverByName?.("Heatmap") || mms?.getMover?.("Heatmap") || movers.find((item) => clean(item.name).toLowerCase() === "heatmap");
+          if (mms?.subscribe && mover) break;
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
 
         if (!mms?.subscribe || !mover) {
           return {
@@ -787,7 +800,7 @@ async function main() {
             stocks: [],
             sectors: [],
             reason: "Custom Heatmap scan not found",
-            ...(debugOutput ? { debug: { movers: (mms?.getMovers?.() || []).map((item) => ({ id: item.id, name: item.name })).slice(0, 80) } } : {})
+            ...(debugOutput ? { debug: { moverWaitMs: 20_000, movers: moverNames.slice(0, 80) } } : {})
           };
         }
 
@@ -943,9 +956,9 @@ async function main() {
       timings: output.sectionTimings,
       scans: scanResult ? { rows: scanResult.rows, durationMs: scanResult.timings.scansMs } : null,
       counts: {
-        media: output.media.items?.length || 0,
-        raises: output.raises.items?.length || 0,
-        dividends: output.dividends.items?.length || 0,
+        media: output.media?.items?.length || 0,
+        raises: output.raises?.items?.length || 0,
+        dividends: output.dividends?.items?.length || 0,
         heatmapStocks: output.heatmap.stocks?.length || 0,
         heatmapSectors: output.heatmap.sectors?.length || 0
       },
