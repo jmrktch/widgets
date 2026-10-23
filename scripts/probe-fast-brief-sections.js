@@ -70,26 +70,6 @@ async function openFocusHome(page) {
         const bodyText = String(document.body?.innerText || "").trim();
         return bodyText.length > 40 && !/^Connecting\.\.\.$/i.test(bodyText);
       }, null, { timeout: readyTimeoutMs });
-      // Focus only fetches the saved-mover registry when the Heatmap widget's
-      // scan selector is opened. Base presets are already available on the
-      // dashboard, which previously made the page look ready while the saved
-      // Heatmap mover was absent. Opening this menu causes its "Custom Scans"
-      // section (and the persisted Heatmap definition) to hydrate.
-      const scanSelectors = page.locator('button[aria-label="Select scan"]');
-      const selectorCount = await scanSelectors.count();
-      for (let index = 0; index < selectorCount; index += 1) {
-        const selector = scanSelectors.nth(index);
-        if ((await selector.innerText().catch(() => "")).trim() !== "Heatmap") continue;
-        await selector.click({ timeout: 10_000 }).catch(() => {});
-        await page.getByText("Custom Scans", { exact: true }).first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
-        await page.waitForFunction((heatmapId) => {
-          const root = document.querySelector("[ng-app]") || document.body;
-          const movers = window.angular?.element?.(root)?.injector?.()?.get?.("marketMoversService");
-          return Boolean(movers?.getMover?.(heatmapId) || movers?.getMoverByName?.("Heatmap"));
-        }, HEATMAP_MOVER_ID, { timeout: 30_000 }).catch(() => {});
-        await page.keyboard.press("Escape").catch(() => {});
-        break;
-      }
       await page.waitForTimeout(500);
       return;
     } catch (error) {
@@ -984,10 +964,8 @@ async function main() {
       }
       const skipped = { value: null, durationMs: 0 };
       const [mediaResult, raisesResult, dividendsResult, heatmapResult] = heatmapOnly
-        ? [skipped, skipped, skipped, await timed(fetchHeatmap)]
-        : await Promise.all([
-          timed(fetchMedia), timed(fetchRaises), timed(fetchDividends), timed(fetchHeatmap)
-        ]);
+        ? [skipped, skipped, skipped, skipped]
+        : [...await Promise.all([timed(fetchMedia), timed(fetchRaises), timed(fetchDividends)]), skipped];
 
       return {
         ok: true,
@@ -1018,7 +996,6 @@ async function main() {
       writeJson(OUTPUTS.raises, output.raises);
       writeJson(OUTPUTS.dividends, output.dividends);
     }
-    writeJson(OUTPUTS.heatmap, output.heatmap);
     writeJson(OUTPUTS.profile, {
       extractedAt: new Date().toISOString(),
       sessionStartupMs: sessionReadyAt - startedAt,
@@ -1046,14 +1023,14 @@ async function main() {
         media: output.media?.items?.length || 0,
         raises: output.raises?.items?.length || 0,
         dividends: output.dividends?.items?.length || 0,
-        heatmapStocks: output.heatmap.stocks?.length || 0,
-        heatmapSectors: output.heatmap.sectors?.length || 0
+        heatmapStocks: 0,
+        heatmapSectors: 0
       },
       status: {
         media: output.media?.ok ?? null,
         raises: output.raises?.ok ?? null,
         dividends: output.dividends?.ok ?? null,
-        heatmap: output.heatmap.ok
+        heatmap: null
       }
     }, null, 2));
   } catch (error) {

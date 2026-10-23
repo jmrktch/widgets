@@ -8,9 +8,10 @@ const {
   fetchChartsBatch,
   fetchQuoteForSymbol,
   fetchChartForSymbol,
+  fetchContractDetailsForSymbol,
   lookupContract
 } = require("../lib/focus-client");
-const { readSymbols } = require("../lib/store");
+const { readSymbols, readSymbolMeta } = require("../lib/store");
 const { runRefreshCookieJob } = require("./refresh-cookie-job");
 
 const ROOT = path.join(__dirname, "..");
@@ -265,13 +266,9 @@ async function collectBenchmarks() {
   };
 }
 
-async function collectFastSections() {
+async function collectFastSections(heatmap) {
   const child = await runNodeScript("scripts/probe-fast-brief-sections.js", ["--limit=200", "--dividend-days=14", "--include-scans"]);
   const source = (name) => readJson(path.join(ROOT, "public", name));
-  const heatmap = source("heatmap-fast.json");
-  if (!heatmap.ok || !heatmap.stocks?.length) {
-    throw new Error(`Focus Heatmap subscription returned no stocks: ${heatmap.reason || "unknown reason"}`);
-  }
   const output = {
     extractedAt: new Date().toISOString(),
     media: source("top-media-fast.json"),
@@ -295,6 +292,71 @@ async function collectFastSections() {
   } };
 }
 
+async function collectContractDetails(symbols) {
+  const symbolMeta = readSymbolMeta();
+  const values = [];
+  const failures = [];
+  for (const group of batches(symbols)) {
+    const results = await Promise.allSettled(group.map((symbol) => fetchContractDetailsForSymbol(symbol, {
+      productType: symbolMeta[symbol]?.productType || "Stock"
+    })));
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") values.push(result.value);
+      else failures.push(group[index]);
+    });
+  }
+  return { values, failures };
+}
+
+function buildHeatmap(symbols, quotes, contractDetails) {
+  const quotesByTicker = new Map(quotes.map((quote) => [quote.ticker, quote]));
+  const detailsByTicker = new Map(contractDetails.map((detail) => [detail.ticker, detail]));
+  const stocks = symbols.map((code) => {
+    const quote = quotesByTicker.get(code);
+    const detail = detailsByTicker.get(code);
+    if (!quote || !detail || detail.productType !== "Stock" || !Number.isFinite(quote.marketCap) || quote.marketCap <= 0) return null;
+    return {
+      code,
+      name: detail.companyName || quote.companyName || null,
+      sector: detail.sector || "Unclassified",
+      industry: detail.industry || null,
+      subIndustry: detail.subIndustry || null,
+      weight: quote.marketCap,
+      marketCap: quote.marketCap,
+      changePercent: quote.changePercent,
+      contractKey: { ProviderKey: "$", ProductType: detail.productType, Exchange: detail.exchange || "XASX", Symbol: code }
+    };
+  }).filter(Boolean);
+  const totalWeight = stocks.reduce((total, stock) => total + stock.weight, 0);
+  const sectors = Array.from(stocks.reduce((map, stock) => {
+    const sector = map.get(stock.sector) || { name: stock.sector, weight: 0, count: 0, stocks: [] };
+    sector.weight += stock.weight;
+    sector.count += 1;
+    sector.stocks.push(stock);
+    map.set(stock.sector, sector);
+    return map;
+  }, new Map()).values()).sort((a, b) => b.weight - a.weight).map((sector, order) => ({
+    ...sector,
+    order,
+    shareOfTotal: totalWeight ? sector.weight / totalWeight : null,
+    stocks: sector.stocks.sort((a, b) => b.weight - a.weight).map((stock, stockOrder) => ({
+      ...stock,
+      order: stockOrder,
+      shareOfTotal: totalWeight ? stock.weight / totalWeight : null,
+      shareOfSector: sector.weight ? stock.weight / sector.weight : null
+    }))
+  }));
+  return {
+    ok: stocks.length > 0,
+    extractedAt: new Date().toISOString(),
+    source: "snapshot-tickers:Stock market-cap universe",
+    layoutBasis: { weight: "marketCap", color: "changePercent", sectorShare: "sector.weight / totalWeight", stockShare: "stock.weight / sector.weight" },
+    totalWeight,
+    stocks: sectors.flatMap((sector) => sector.stocks),
+    sectors
+  };
+}
+
 async function collectScans() {
   const limit = Math.max(1, Number(process.env.MARKET_SNAPSHOT_SCAN_LIMIT || 10));
   const scanNames = [
@@ -314,10 +376,11 @@ async function collectScans() {
   return { files, count: scanNames.length, rowsPerScan: limit, profile: { childDurationMs: profile?.totalMs || 0, ...(profile || {}) } };
 }
 
-function publishTickerResources(symbols, quotes, charts) {
+function publishTickerResources(symbols, quotes, charts, contractDetails) {
   const extractedAt = new Date().toISOString();
   const quotesByTicker = new Map(quotes.map((quote) => [quote.ticker, quote]));
   const chartsByTicker = new Map(charts.map((chart) => [chart.ticker, chart]));
+  const detailsByTicker = new Map(contractDetails.map((detail) => [detail.ticker, detail]));
   const publishedSymbols = [];
 
   for (const symbol of symbols) {
@@ -331,7 +394,8 @@ function publishTickerResources(symbols, quotes, charts) {
       extractedAt,
       symbol,
       quote,
-      candles5m5d
+      candles5m5d,
+      contract: detailsByTicker.get(symbol) || null
     });
     publishedSymbols.push(symbol);
   }
@@ -382,7 +446,7 @@ async function runSnapshot() {
         "Supplied ASX Top 200 quotes",
         "Supplied ASX Top 200 5-minute / 5-day candles",
         "GOLD, AU1YY, US1YY, OOO benchmark quotes",
-        "Platform heatmap, media, raises, next-14-day dividends",
+        "Ticker-derived stock Heatmap, media, raises, next-14-day dividends",
         "Platform-configured scans excluding unusual volume"
       ],
       outputDirectory: path.relative(ROOT, OUTPUT_DIR).replace(/\\/g, "/")
@@ -403,6 +467,8 @@ async function runSnapshot() {
 
   let quoteResult = null;
   let candleResult = null;
+  let contractResult = null;
+  let tickerHeatmap = null;
   await runTask(manifest, "quotes", async () => {
     const result = await collectInBatches(symbols, fetchQuotesWithContractRetry, "quotes");
     if (result.values.length / symbols.length < MIN_SUCCESS_RATIO) {
@@ -419,12 +485,29 @@ async function runSnapshot() {
     candleResult = result;
     return { count: result.values.length, failures: result.failures, batchTimings: result.batchTimings, collectionMs: result.durationMs };
   });
+  await runTask(manifest, "contractDetails", async () => {
+    const result = await collectContractDetails(symbols);
+    if (result.values.length / symbols.length < MIN_SUCCESS_RATIO) {
+      throw new Error(`Contract detail success ratio ${result.values.length}/${symbols.length} below threshold.`);
+    }
+    contractResult = result;
+    return { count: result.values.length, failures: result.failures };
+  });
   await runTask(manifest, "tickerResources", async () => {
-    if (!quoteResult || !candleResult) throw new Error("Cannot publish ticker resources without completed quote and candle collections.");
-    return publishTickerResources(symbols, quoteResult.values, candleResult.values);
+    if (!quoteResult || !candleResult || !contractResult) throw new Error("Cannot publish ticker resources without completed quote, candle, and contract collections.");
+    return publishTickerResources(symbols, quoteResult.values, candleResult.values, contractResult.values);
+  });
+  await runTask(manifest, "heatmap", () => {
+    if (!quoteResult || !contractResult) throw new Error("Cannot build Heatmap without quotes and contract details.");
+    tickerHeatmap = buildHeatmap(symbols, quoteResult.values, contractResult.values);
+    if (!tickerHeatmap.ok) throw new Error("Ticker-based Heatmap contains no eligible stocks.");
+    return { files: [writeJsonAtomic("scans/heatmap.json", tickerHeatmap)], count: tickerHeatmap.stocks.length, sectors: tickerHeatmap.sectors.length };
   });
   await runTask(manifest, "benchmarks", collectBenchmarks);
-  await runTask(manifest, "marketContent", collectFastSections);
+  await runTask(manifest, "marketContent", () => {
+    if (!tickerHeatmap) throw new Error("Ticker-based Heatmap was not generated.");
+    return collectFastSections(tickerHeatmap);
+  });
   await runTask(manifest, "scans", collectScans);
 
   manifest.finishedAt = new Date().toISOString();
