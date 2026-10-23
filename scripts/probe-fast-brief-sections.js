@@ -13,6 +13,31 @@ const INCLUDE_SCANS = process.argv.includes("--include-scans");
 const LIMIT = Number((process.argv.find((arg) => arg.startsWith("--limit=")) || "--limit=5").split("=")[1] || 5);
 const DIVIDEND_WINDOW_DAYS = Math.max(1, Number((process.argv.find((arg) => arg.startsWith("--dividend-days=")) || "--dividend-days=1").split("=")[1] || 1));
 const HEATMAP_MOVER_ID = "RpED0szHzb";
+// Focus only hydrates saved profile movers after its profile stream completes.
+// GitHub's fresh browser session does not always receive that stream, so retain
+// the exact user-owned Heatmap definition and register it with Focus before
+// subscribing by ID. This is the same configuration exported from Focus.
+const HEATMAP_MOVER_CONFIG = {
+  contracts: { group: "Australia", custom: { enabled: false, keys: [] } },
+  scanFilters: [],
+  scanRanks: [{ $type: "Analytics.Fundamentals.MarketCapitalisationProperty", category: "fundamentals", id: "static_marketCap", key: "marketCap", direction: "Descending", metadataKey: "bigDollarValue", isStatic: true, rankable: true, display: "Market Cap", addableFilter: true, versionIntroduced: 21, allowedAlert: true }],
+  scanOutputs: [
+    { $type: "Analytics.Candles.CloseCandleProperty", category: "candles", id: "static_close", key: "close", offset: 0, interval: { Amount: 1, Basis: "Day", display: "Daily" }, direction: "Descending", metadataKey: "priceValue", isStatic: true, rankable: true, display: "Last", allowedIntervals: [{ Amount: 1, Basis: "Day", display: "Daily" }, { Amount: 5, Basis: "Day", display: "5 Day" }, { Amount: 30, Basis: "Day", display: "30 Day" }, { Amount: 1, Basis: "Week", display: "Week to date" }, { Amount: 1, Basis: "Month", display: "Month to date" }], addableFilter: true, modifierSupport: true, mathsSupport: true, onChart: true, versionIntroduced: 21, allowedAlert: true },
+    { $type: "Analytics.Candles.ChangePercentageCandleProperty", category: "candles", id: "static_changePct_daily", key: "changePct", offset: 0, range: 2, interval: { Amount: 1, Basis: "Day" }, rollingInterval: false, direction: "Descending", metadataKey: "percValue", isStatic: true, rankable: true, display: "Change %", allowedIntervals: [{ Amount: 2, Basis: "Day", display: "Daily" }, { Amount: 2, Basis: "Week", display: "Week to date" }, { Amount: 2, Basis: "Month", display: "Month to date" }, { Amount: 2, Basis: "Week", display: "Rolling week", rolling: true }, { Amount: 2, Basis: "Month", display: "Rolling month", rolling: true }], addableFilter: true, modifierSupport: true, versionIntroduced: 21, isComputed: true, allowedAlert: true }
+  ],
+  scanTargets: {
+    limit: { direction: "Descending", number: "200", property: { $type: "Analytics.Fundamentals.MarketCapitalisationProperty", category: "fundamentals", key: "marketCap", display: "Market Cap", metadataKey: "bigDollarValue", rankable: true, addableFilter: true, versionIntroduced: 21, allowedAlert: true } },
+    productTypes: [
+      ["Stock", "Stocks"], ["Option", "Options"], ["Bond", "Bonds"], ["Note", "Notes"],
+      ["Index", "Indices"], ["Fund", "Funds"], ["Right", "Rights"], ["PartlyPaid", "Partly Paids"]
+    ].map(([key, display]) => ({ key, display, enabled: key === "Stock", $type: "Analytics.StringProperty" })),
+    tradedToday: false
+  },
+  options: { AdditionalMetadata: [
+    { $type: "Analytics.Candles.CloseCandleProperty", metadataKey: "slot0_priceValue", Interval: { Basis: "Day", Amount: 1 }, Offset: 0 },
+    { $type: "Analytics.Candles.ChangePercentageCandleProperty", metadataKey: "slot1_percValue", Interval: { Basis: "Day", Amount: 1 }, Range: 2, Offset: 0, FirstProperty: "Close", SecondProperty: "Close" }
+  ] }
+};
 
 const OUTPUTS = {
   media: path.join(ROOT, "public", "top-media-fast.json"),
@@ -71,7 +96,7 @@ async function main() {
     await openFocusHome(session.page);
     const homeReadyAt = Date.now();
 
-    const output = await session.page.evaluate(async ({ limit, dividendWindowDays, debugOutput, heatmapOnly, heatmapMoverId, forceHeatmapMoverId }) => {
+    const output = await session.page.evaluate(async ({ limit, dividendWindowDays, debugOutput, heatmapOnly, heatmapMoverId, heatmapMoverConfig, forceHeatmapMoverId }) => {
       const startedAt = Date.now();
 
       function mapMessages(payload) {
@@ -827,6 +852,21 @@ async function main() {
           };
         }
 
+        // An ID alone is insufficient in a session where Focus has not yet
+        // hydrated this saved mover. Register the exported definition using
+        // Focus's native service, then keep the normal mover subscription.
+        let configRegistrationError = null;
+        if (usedConfiguredMoverId && heatmapMoverConfig) {
+          try {
+            const config = window._?.cloneDeep
+              ? window._.cloneDeep(heatmapMoverConfig)
+              : structuredClone(heatmapMoverConfig);
+            mms.updateConfig?.(mover.id, config, true, true);
+          } catch (error) {
+            configRegistrationError = error?.message || String(error);
+          }
+        }
+
         const rows = await new Promise((resolve) => {
           let sub = null;
           const packets = [];
@@ -912,7 +952,8 @@ async function main() {
           totalWeight,
           stocks: sectors.flatMap((sector) => sector.stocks),
           sectors,
-          ...(debugOutput ? { debug: { mover: { id: mover.id, name: mover.name, usedConfiguredMoverId }, packets: rows.packets || [], firstDetail: detailsBySymbol.values().next().value || null } } : {})
+          ...(stocks.length ? {} : { reason: configRegistrationError || (rows.packets?.length ? "Heatmap subscription completed without scan rows" : "Heatmap subscription returned no packets") }),
+          ...(debugOutput ? { debug: { mover: { id: mover.id, name: mover.name, usedConfiguredMoverId }, configRegistrationError, packets: rows.packets || [], firstDetail: detailsBySymbol.values().next().value || null } } : {})
         };
       }
 
@@ -948,6 +989,7 @@ async function main() {
       debugOutput: DEBUG_OUTPUT,
       heatmapOnly: HEATMAP_ONLY,
       heatmapMoverId: HEATMAP_MOVER_ID,
+      heatmapMoverConfig: HEATMAP_MOVER_CONFIG,
       forceHeatmapMoverId: FORCE_HEATMAP_MOVER_ID
     });
 
