@@ -37,6 +37,14 @@ async function openFocusHome(page) {
         const movers = injector?.get?.("marketMoversService");
         return Boolean(movers?.getMoverByName?.("Top Gainers"));
       }, null, { timeout: readyTimeoutMs });
+      // Angular registers base services while Focus is still displaying its
+      // Connecting splash. Saved movers are not reliably available until the
+      // real Scans UI has rendered.
+      await page.locator(".splash").waitFor({ state: "hidden", timeout: readyTimeoutMs }).catch(() => {});
+      await page.waitForFunction(() => {
+        const bodyText = String(document.body?.innerText || "").trim();
+        return bodyText.length > 40 && !/^Connecting\.\.\.$/i.test(bodyText);
+      }, null, { timeout: readyTimeoutMs });
       await page.waitForTimeout(500);
       return;
     } catch (error) {
