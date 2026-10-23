@@ -780,7 +780,10 @@ async function main() {
         // The base movers (for example, Top Gainers) register before custom
         // movers. A fresh browser can therefore see the service while the
         // persisted Heatmap mover is still being hydrated.
-        const moverDeadline = Date.now() + 20_000;
+        // Match the saved-mover hydration window already used by the direct
+        // scan collector. Focus registers presets first, then profile movers.
+        const moverWaitMs = Math.max(5_000, Number(window.__FOCUS_MOVER_READY_TIMEOUT_MS || 45_000));
+        const moverDeadline = Date.now() + moverWaitMs;
         let mms = null;
         let mover = null;
         let moverNames = [];
@@ -812,7 +815,7 @@ async function main() {
             stocks: [],
             sectors: [],
             reason: "Custom Heatmap scan not found",
-            ...(debugOutput ? { debug: { moverWaitMs: 20_000, movers: moverNames.slice(0, 80) } } : {})
+            ...(debugOutput ? { debug: { moverWaitMs, movers: moverNames.slice(0, 80) } } : {})
           };
         }
 
