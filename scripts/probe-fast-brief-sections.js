@@ -615,8 +615,8 @@ async function main() {
         const todayKey = dateKey(now);
         const targetOffsetDays = dividendTargetOffset(now);
         const targetKey = dateKey(addDays(now, targetOffsetDays));
-        // The published seven-day view begins tomorrow: it excludes dividends
-        // already ex-date today while retaining seven full upcoming calendar days.
+        // The published window begins tomorrow: it excludes dividends already
+        // ex-date today while retaining the requested number of full upcoming days.
         const windowStartKey = dateKey(addDays(now, 1));
         const windowEndKey = dateKey(addDays(now, dividendWindowDays));
         const backfillEndKey = dateKey(addDays(now, 45));

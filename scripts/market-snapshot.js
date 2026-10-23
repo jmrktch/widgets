@@ -266,7 +266,7 @@ async function collectBenchmarks() {
 }
 
 async function collectFastSections() {
-  const child = await runNodeScript("scripts/probe-fast-brief-sections.js", ["--limit=200", "--dividend-days=7", "--include-scans"]);
+  const child = await runNodeScript("scripts/probe-fast-brief-sections.js", ["--limit=200", "--dividend-days=14", "--include-scans"]);
   const source = (name) => readJson(path.join(ROOT, "public", name));
   const output = {
     extractedAt: new Date().toISOString(),
