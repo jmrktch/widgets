@@ -70,6 +70,26 @@ async function openFocusHome(page) {
         const bodyText = String(document.body?.innerText || "").trim();
         return bodyText.length > 40 && !/^Connecting\.\.\.$/i.test(bodyText);
       }, null, { timeout: readyTimeoutMs });
+      // Focus only fetches the saved-mover registry when the Heatmap widget's
+      // scan selector is opened. Base presets are already available on the
+      // dashboard, which previously made the page look ready while the saved
+      // Heatmap mover was absent. Opening this menu causes its "Custom Scans"
+      // section (and the persisted Heatmap definition) to hydrate.
+      const scanSelectors = page.locator('button[aria-label="Select scan"]');
+      const selectorCount = await scanSelectors.count();
+      for (let index = 0; index < selectorCount; index += 1) {
+        const selector = scanSelectors.nth(index);
+        if ((await selector.innerText().catch(() => "")).trim() !== "Heatmap") continue;
+        await selector.click({ timeout: 10_000 }).catch(() => {});
+        await page.getByText("Custom Scans", { exact: true }).first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
+        await page.waitForFunction((heatmapId) => {
+          const root = document.querySelector("[ng-app]") || document.body;
+          const movers = window.angular?.element?.(root)?.injector?.()?.get?.("marketMoversService");
+          return Boolean(movers?.getMover?.(heatmapId) || movers?.getMoverByName?.("Heatmap"));
+        }, HEATMAP_MOVER_ID, { timeout: 30_000 }).catch(() => {});
+        await page.keyboard.press("Escape").catch(() => {});
+        break;
+      }
       await page.waitForTimeout(500);
       return;
     } catch (error) {
