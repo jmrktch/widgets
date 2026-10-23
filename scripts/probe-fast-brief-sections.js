@@ -703,8 +703,15 @@ async function main() {
             dailySparkline: dividendSparkline || item.dailySparkline
           };
         }));
+        const exDateTime = (item) => {
+          const value = new Date(item.exDate).getTime();
+          return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
+        };
         const items = itemsWithDetails
-          .sort((a, b) => (numberValue(b.marketCap) || 0) - (numberValue(a.marketCap) || 0));
+          .filter((item) => String(item.contractKey?.ProductType || item.contractKey?.productType || "").toLowerCase() === "stock")
+          .sort((a, b) => (numberValue(b.marketCap) || 0) - (numberValue(a.marketCap) || 0))
+          .slice(0, 10)
+          .sort((a, b) => exDateTime(a) - exDateTime(b));
         return {
           ok,
           extractedAt: new Date().toISOString(),
@@ -718,9 +725,9 @@ async function main() {
           },
           selection: {
             rule: dividendWindowDays > 1
-              ? "All dividends in the requested ex-date window, sorted by market cap descending"
-              : "All dividends with target ex-date, sorted by market cap descending, capped at limit",
-            limit: dividendWindowDays > 1 ? null : limit
+              ? "Stock dividends in the requested ex-date window; select the 10 largest by market cap, then sort by ex-date ascending"
+              : "Stock dividends with target ex-date; select the 10 largest by market cap, then sort by ex-date ascending",
+            limit: 10
           },
           backfillRange: { startDate: todayKey, endDate: backfillEndKey },
           items,
