@@ -65,7 +65,13 @@ jobs:
           COLLECTOR_MARKET_TIMEZONE: Australia/Sydney
         run: npm run snapshot:once -- --force
 
-      - name: Upload JSON-only Pages artifact
+      - name: Generate partner HTML renders
+        env:
+          SNAPSHOT_RENDER_SOURCE_DIR: site/snapshot/latest
+          SNAPSHOT_RENDER_OUTPUT_DIR: site/snapshot-renders/latest
+        run: node scripts/generate-snapshot-render-assets.js
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: site
