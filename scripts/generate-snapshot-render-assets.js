@@ -16,8 +16,8 @@ const SCANS = ["top-gainers", "top-losers", "gapped-up", "gapped-down", "trading
 const BENCHMARKS = ["GOLD", "AU1YY", "US1YY", "OOO", "A200"];
 const SCAN_TITLES = { "top-gainers": "Top Gainers", "top-losers": "Top Losers", "gapped-up": "Gapped Up", "gapped-down": "Gapped Down", "trading-halt": "Trading Halts", "52-week-high": "52-Week Highs", "52-week-low": "52-Week Lows", "rsi-oversold": "RSI Oversold", "rsi-overbought": "RSI Overbought", "high-roe-low-dtc": "High RoE + Low DTC" };
 const SCAN_SUBTITLES = {
-  "top-gainers": "Top gainers among the top 500 AU stocks.",
-  "top-losers": "Top losers among the top 500 AU stocks.",
+  "top-gainers": "Top gainers among the AU 500.",
+  "top-losers": "Top losers among the AU 500.",
   "gapped-up": "Today's open is greater than yesterday's high.",
   "gapped-down": "Today's open is below yesterday's low.",
   "trading-halt": "Stocks that are currently in a Trading Halt.",
@@ -25,7 +25,7 @@ const SCAN_SUBTITLES = {
   "52-week-low": "Has traded at its 52-week low today; sorted by market cap.",
   "rsi-oversold": "RSI(14) is below 30.",
   "rsi-overbought": "RSI(14) is above 70.",
-  "high-roe-low-dtc": "Top 500 AU stocks with balanced Return on Equity and Debt-to-Capital ratios."
+  "high-roe-low-dtc": "Top AU 500 stocks with balanced Return on Equity and Debt-to-Capital ratios."
 };
 const MISSING = "—";
 
