@@ -533,11 +533,11 @@ async function collectScansWithPage(page, timing = {}) {
       };
 
       // Excel defines this built-in preset as a complete scanning contract.
-      // Subscribing to that contract avoids the profile/mover resolution layer
-      // that intermittently completes empty on fresh hosted Focus sessions.
+      // The mover subscription remains a connection warm-up and fallback on
+      // cold hosted sessions; the raw scan service shares that live stream.
       const useStaticExcelHighRoe = clean(scanName).toLowerCase() === "high roe + low dtc" && Boolean(scanning?.subscribe);
       const events = [];
-      const viaMarketMovers = !useStaticExcelHighRoe ? await new Promise((resolve) => {
+      const viaMarketMovers = await new Promise((resolve) => {
         let sub = null;
         let settled = false;
         let quietTimer = null;
@@ -622,7 +622,7 @@ async function collectScansWithPage(page, timing = {}) {
           }
         };
         startSubscription();
-      }) : null;
+      });
 
       // Excel ships this preset as a plain scanning contract, rather than a
       // named Focus mover. Use it directly to avoid preset-profile hydration.
@@ -764,7 +764,12 @@ async function collectScansWithPage(page, timing = {}) {
         : null;
 
       let directScanJson = null;
-      const subscriptionResult = staticExcelHighRoe || viaMarketMovers;
+      // Prefer the known Excel contract when it produced matches. On a cold
+      // runner, the preceding mover subscription establishes the shared
+      // SignalR connection; if the static service still cannot respond, keep
+      // the established mover result rather than discarding it.
+      const staticExcelHighRoeUsable = staticExcelHighRoe?.ok && staticExcelHighRoe.rows.length > 0;
+      const subscriptionResult = staticExcelHighRoeUsable ? staticExcelHighRoe : viaMarketMovers;
       if (!subscriptionResult?.ok && filters?.toScanJson && scanning?.subscribe) {
         try {
           directScanJson = await filters.toScanJson(mover.config, undefined, `brief-direct-${mover.id}`);
@@ -779,7 +784,7 @@ async function collectScansWithPage(page, timing = {}) {
         limit,
         extractedAt: new Date().toISOString(),
         durationMs: Date.now() - startedAt,
-        source: useStaticExcelHighRoe
+        source: staticExcelHighRoeUsable
           ? "scanningService.subscribe: Excel High RoE preset"
           : subscriptionResult?.method || "Focus Angular services",
         sort: marketCapOutputOrderScans.includes(scanName)
