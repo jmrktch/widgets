@@ -53,6 +53,13 @@ const MARKET_CAP_OUTPUT_ORDER_SCANS = new Set([
   "52 Week High",
   "52 Week Low"
 ]);
+// The fundamentals screen is expected to have qualifying instruments. Focus
+// can emit an empty completion packet while its mover profile is still
+// hydrating on a cold runner, so retry that subscription once rather than
+// publishing a false empty table.
+const RETRY_EMPTY_COMPLETION_SCANS = new Set([
+  "High RoE + low Dtc"
+]);
 // TMX does not provide the volume data required for a trustworthy unusual-volume scan.
 const SCAN_NAMES = process.argv.includes("--all")
   ? ALL_SCAN_NAMES.filter((name) => name !== "Unusual Volume")
@@ -99,7 +106,7 @@ async function collectScansWithPage(page, timing = {}) {
     for (const scanName of scanNames) {
       console.log(`[scan] ${scanName}`);
 
-      const output = await page.evaluate(async ({ scanName, limit, scanFetchLimit, universeLimit, marketCapTop500Scans, marketCapOutputOrderScans, debugOutput, sparklineMaxPoints }) => {
+      const output = await page.evaluate(async ({ scanName, limit, scanFetchLimit, universeLimit, marketCapTop500Scans, marketCapOutputOrderScans, retryEmptyCompletionScans, debugOutput, sparklineMaxPoints }) => {
       const startedAt = Date.now();
 
       function clean(value) {
@@ -532,6 +539,8 @@ async function collectScansWithPage(page, timing = {}) {
         let settled = false;
         let quietTimer = null;
         let bestRows = [];
+        let emptyCompletionRetries = 0;
+        const retryEmptyCompletion = retryEmptyCompletionScans.includes(scanName);
         const finish = (result) => {
           if (settled) return;
           settled = true;
@@ -565,7 +574,8 @@ async function collectScansWithPage(page, timing = {}) {
             : { ok: false, reason: "timeout", events });
         }, 8000);
 
-        try {
+        const startSubscription = () => {
+          try {
           sub = mms.subscribe(mover.id, scanFetchLimit, `brief-${Date.now()}`).subscribe(
             (packet) => {
               if (settled) return;
@@ -580,6 +590,22 @@ async function collectScansWithPage(page, timing = {}) {
                 scheduleQuietFinish();
               }
               if (packet?.progress === true || packet?.progress === 100) {
+                if (retryEmptyCompletion && bestRows.length === 0) {
+                  if (emptyCompletionRetries < 1) {
+                    emptyCompletionRetries += 1;
+                    sub?.dispose?.();
+                    sub?.unsubscribe?.();
+                    startSubscription();
+                    return;
+                  }
+                  finish({
+                    ok: false,
+                    method: "marketMoversService.subscribe",
+                    reason: "scan completed without rows after retry",
+                    eventCount: events.length
+                  });
+                  return;
+                }
                 finish({ ok: true, method: "marketMoversService.subscribe", rows: bestRows, eventCount: events.length });
               }
             },
@@ -587,9 +613,11 @@ async function collectScansWithPage(page, timing = {}) {
               finish({ ok: false, method: "marketMoversService.subscribe", reason: error?.message || String(error), events });
             }
           );
-        } catch (error) {
-          finish({ ok: false, method: "marketMoversService.subscribe", reason: error?.message || String(error), events });
-        }
+          } catch (error) {
+            finish({ ok: false, method: "marketMoversService.subscribe", reason: error?.message || String(error), events });
+          }
+        };
+        startSubscription();
       });
 
       let directScanJson = null;
@@ -638,6 +666,7 @@ async function collectScansWithPage(page, timing = {}) {
       universeLimit: 500,
       marketCapTop500Scans: Array.from(MARKET_CAP_TOP_500_SCANS),
       marketCapOutputOrderScans: Array.from(MARKET_CAP_OUTPUT_ORDER_SCANS),
+      retryEmptyCompletionScans: Array.from(RETRY_EMPTY_COMPLETION_SCANS),
       debugOutput: DEBUG_OUTPUT,
       sparklineMaxPoints: SPARKLINE_MAX_POINTS
     });
