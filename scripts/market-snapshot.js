@@ -361,7 +361,7 @@ async function collectScans() {
   const limit = Math.max(1, Number(process.env.MARKET_SNAPSHOT_SCAN_LIMIT || 10));
   const scanNames = [
     "top-gainers", "top-losers", "gapped-up", "gapped-down", "trading-halt", "52-week-high", "52-week-low",
-    "rsi-oversold", "rsi-overbought", "high-roe-low-dtc"
+    "rsi-oversold", "rsi-overbought"
   ];
   const scans = {};
   for (const name of scanNames) {

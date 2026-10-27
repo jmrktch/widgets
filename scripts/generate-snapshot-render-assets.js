@@ -12,9 +12,9 @@ const ROOT = path.join(__dirname, "..");
 const SOURCE = path.resolve(ROOT, process.env.SNAPSHOT_RENDER_SOURCE_DIR || "public/snapshot/latest");
 const OUTPUT = path.resolve(ROOT, process.env.SNAPSHOT_RENDER_OUTPUT_DIR || "public/snapshot-renders/latest");
 const LOGO_DATA_URL = `data:image/png;base64,${fs.readFileSync(path.join(ROOT, "public", "marketech_focus_logo.png")).toString("base64")}`;
-const SCANS = ["top-gainers", "top-losers", "gapped-up", "gapped-down", "trading-halt", "52-week-high", "52-week-low", "rsi-oversold", "rsi-overbought", "high-roe-low-dtc"];
+const SCANS = ["top-gainers", "top-losers", "gapped-up", "gapped-down", "trading-halt", "52-week-high", "52-week-low", "rsi-oversold", "rsi-overbought"];
 const BENCHMARKS = ["GOLD", "AU1YY", "US1YY", "OOO", "A200"];
-const SCAN_TITLES = { "top-gainers": "Top Gainers", "top-losers": "Top Losers", "gapped-up": "Gapped Up", "gapped-down": "Gapped Down", "trading-halt": "Trading Halts", "52-week-high": "52-Week Highs", "52-week-low": "52-Week Lows", "rsi-oversold": "RSI Oversold", "rsi-overbought": "RSI Overbought", "high-roe-low-dtc": "High RoE + Low DTC" };
+const SCAN_TITLES = { "top-gainers": "Top Gainers", "top-losers": "Top Losers", "gapped-up": "Gapped Up", "gapped-down": "Gapped Down", "trading-halt": "Trading Halts", "52-week-high": "52-Week Highs", "52-week-low": "52-Week Lows", "rsi-oversold": "RSI Oversold", "rsi-overbought": "RSI Overbought" };
 const SCAN_SUBTITLES = {
   "top-gainers": "Top gainers among the AU 500.",
   "top-losers": "Top losers among the AU 500.",
@@ -24,8 +24,7 @@ const SCAN_SUBTITLES = {
   "52-week-high": "Has traded at its 52-week high today; sorted by market cap.",
   "52-week-low": "Has traded at its 52-week low today; sorted by market cap.",
   "rsi-oversold": "RSI(14) is below 30.",
-  "rsi-overbought": "RSI(14) is above 70.",
-  "high-roe-low-dtc": "Top AU 500 stocks with balanced Return on Equity and Debt-to-Capital ratios."
+  "rsi-overbought": "RSI(14) is above 70."
 };
 const MISSING = "—";
 

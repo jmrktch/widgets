@@ -37,8 +37,7 @@ const ALL_SCAN_NAMES = [
   "52 Week High",
   "52 Week Low",
   "RSI Oversold",
-  "RSI Overbought",
-  "High RoE + low Dtc"
+  "RSI Overbought"
 ];
 // These scans use a Top 500-by-market-cap candidate universe before Focus
 // applies its native gap ranking. All other scans retain their native target.
@@ -52,12 +51,6 @@ const MARKET_CAP_TOP_500_SCANS = new Set([
 const MARKET_CAP_OUTPUT_ORDER_SCANS = new Set([
   "52 Week High",
   "52 Week Low"
-]);
-// Focus can emit an empty completion packet while its mover profile is still
-// hydrating on a cold runner, so retry that subscription once before accepting
-// an empty result as legitimate.
-const RETRY_EMPTY_COMPLETION_SCANS = new Set([
-  "High RoE + low Dtc"
 ]);
 // TMX does not provide the volume data required for a trustworthy unusual-volume scan.
 const SCAN_NAMES = process.argv.includes("--all")
@@ -105,7 +98,7 @@ async function collectScansWithPage(page, timing = {}) {
     for (const scanName of scanNames) {
       console.log(`[scan] ${scanName}`);
 
-      const output = await page.evaluate(async ({ scanName, limit, scanFetchLimit, universeLimit, marketCapTop500Scans, marketCapOutputOrderScans, retryEmptyCompletionScans, debugOutput, sparklineMaxPoints }) => {
+      const output = await page.evaluate(async ({ scanName, limit, scanFetchLimit, universeLimit, marketCapTop500Scans, marketCapOutputOrderScans, debugOutput, sparklineMaxPoints }) => {
       const startedAt = Date.now();
 
       function clean(value) {
@@ -532,18 +525,12 @@ async function collectScansWithPage(page, timing = {}) {
         }
       };
 
-      // Excel defines this built-in preset as a complete scanning contract.
-      // The mover subscription remains a connection warm-up and fallback on
-      // cold hosted sessions; the raw scan service shares that live stream.
-      const useStaticExcelHighRoe = clean(scanName).toLowerCase() === "high roe + low dtc" && Boolean(scanning?.subscribe);
       const events = [];
       const viaMarketMovers = await new Promise((resolve) => {
         let sub = null;
         let settled = false;
         let quietTimer = null;
         let bestRows = [];
-        let emptyCompletionRetries = 0;
-        const retryEmptyCompletion = retryEmptyCompletionScans.includes(scanName);
         const finish = (result) => {
           if (settled) return;
           settled = true;
@@ -593,23 +580,6 @@ async function collectScansWithPage(page, timing = {}) {
                 scheduleQuietFinish();
               }
               if (packet?.progress === true || packet?.progress === 100) {
-                if (retryEmptyCompletion && bestRows.length === 0) {
-                  if (emptyCompletionRetries < 1) {
-                    emptyCompletionRetries += 1;
-                    sub?.dispose?.();
-                    sub?.unsubscribe?.();
-                    startSubscription();
-                    return;
-                  }
-                  finish({
-                    ok: true,
-                    method: "marketMoversService.subscribe",
-                    rows: [],
-                    reason: "scan completed without rows after retry",
-                    eventCount: events.length
-                  });
-                  return;
-                }
                 finish({ ok: true, method: "marketMoversService.subscribe", rows: bestRows, eventCount: events.length });
               }
             },
@@ -624,153 +594,8 @@ async function collectScansWithPage(page, timing = {}) {
         startSubscription();
       });
 
-      // Excel ships this preset as a plain scanning contract, rather than a
-      // named Focus mover. Use it directly to avoid preset-profile hydration.
-      const staticExcelHighRoe = useStaticExcelHighRoe
-        ? await new Promise((resolve) => {
-            const config = {
-              contracts: {
-                subscan: {
-                  contracts: {
-                    filter: {
-                      matchMode: "And",
-                      filters: [{
-                        terms: ["CHIA", "XASX", "XNEC"].map((text) => ({ text, fields: "Exchange", emptyTextMatchesAll: false })),
-                        matchMode: "Or"
-                      }]
-                    },
-                    keys: null
-                  },
-                  condition: {
-                    $type: "Analytics.ScalarCondition",
-                    left: { $type: "Analytics.Fundamentals.MarketCapitalisationProperty", metadataKey: "bigDollarValue" },
-                    operator: "GreaterThanOrEqualTo",
-                    right: { $type: "Analytics.DecimalProperty", value: 0 }
-                  },
-                  rank: {
-                    property: { $type: "Analytics.Fundamentals.MarketCapitalisationProperty", metadataKey: "bigDollarValue" },
-                    direction: "Descending",
-                    next: {}
-                  },
-                  limit: 500
-                }
-              },
-              condition: {
-                $type: "Analytics.LogicalAndGroupCondition",
-                group: [
-                  {
-                    $type: "Analytics.ScalarCondition",
-                    left: { $type: "Analytics.Fundamentals.ReturnOnEquityProperty", metadataKey: "decPercValue" },
-                    operator: "GreaterThan",
-                    right: { $type: "Analytics.DecimalProperty", Value: 0.1 }
-                  },
-                  {
-                    $type: "Analytics.ScalarCondition",
-                    left: { $type: "Analytics.Fundamentals.DebtToCapitalRatioProperty", metadataKey: "decPercValue" },
-                    operator: "LessThan",
-                    right: { $type: "Analytics.DecimalProperty", Value: 0.7 }
-                  }
-                ]
-              },
-              rank: {
-                direction: "Descending",
-                property: {
-                  $type: "Analytics.Candles.ChangePercentageCandleProperty",
-                  metadataKey: "percValue",
-                  Interval: { Basis: "Day", Amount: 1 },
-                  Range: 2,
-                  Offset: 0,
-                  FirstProperty: "Close",
-                  SecondProperty: "Close"
-                },
-                next: {},
-                metadataCollectionMode: "None"
-              },
-              limit: 15,
-              options: {
-                TradingHoursReset: true,
-                ForceUpdatePropagation: true,
-                AdditionalMetadata: [
-                  {
-                    $type: "Analytics.Candles.CloseCandleProperty",
-                    metadataKey: "slot0_priceValue",
-                    Interval: { Basis: "Day", Amount: 1 },
-                    Offset: 0
-                  },
-                  {
-                    $type: "Analytics.Candles.ChangePercentageCandleProperty",
-                    metadataKey: "slot1_percValue",
-                    Interval: { Basis: "Day", Amount: 1 },
-                    Range: 2,
-                    Offset: 0,
-                    FirstProperty: "Close",
-                    SecondProperty: "Close"
-                  }
-                ],
-                ScanMode: "InitialMatchesAndUpdates"
-              }
-            };
-            let sub = null;
-            let settled = false;
-            let quietTimer = null;
-            const packets = [];
-            const rowsById = new Map();
-            let bestRows = [];
-            const finish = (result) => {
-              if (settled) return;
-              settled = true;
-              clearTimeout(timeout);
-              clearTimeout(quietTimer);
-              sub?.dispose?.();
-              sub?.unsubscribe?.();
-              resolve(result);
-            };
-            const timeout = setTimeout(() => finish({ ok: bestRows.length > 0, rows: bestRows, packets, reason: "timeout" }), 8_000);
-            try {
-              sub = scanning.subscribe(config.contracts, config.condition, config.rank, config.limit, config.options, true).subscribe(
-                (packet) => {
-                  packets.push(jsonSafe(packet));
-                  const rows = parseStreamPacket(packet, config.limit);
-                  if (packet?.Errors?.length) return finish({ ok: false, rows: bestRows, packets, reason: "scan errors" });
-                  if (rows.length) {
-                    // The raw scanning stream delivers incremental changes;
-                    // unlike marketMoversService it does not maintain the
-                    // result-list cache for us. Preserve each match by its
-                    // stable contract ID before comparing the final table.
-                    rows.forEach((row) => rowsById.set(row.id || row.code, row));
-                    bestRows = Array.from(rowsById.values())
-                      .sort((left, right) => {
-                        // Excel's High RoE preset ranks by one-day percentage
-                        // change. Raw updates arrive out of order, so use the
-                        // rank metadata rather than packet arrival order.
-                        const leftRank = Number(left.scanMetric ?? left.changePercent);
-                        const rightRank = Number(right.scanMetric ?? right.changePercent);
-                        return (Number.isFinite(rightRank) ? rightRank : -Infinity) - (Number.isFinite(leftRank) ? leftRank : -Infinity);
-                      })
-                      .slice(0, config.limit);
-                    clearTimeout(quietTimer);
-                    quietTimer = setTimeout(() => finish({ ok: true, rows: bestRows, packets, reason: "quiet period" }), 1_200);
-                  }
-                  if (packet?.progress === true || packet?.progress === 100) {
-                    finish({ ok: true, rows: bestRows, packets, reason: "completed" });
-                  }
-                },
-                (error) => finish({ ok: false, rows: bestRows, packets, reason: error?.message || String(error) })
-              );
-            } catch (error) {
-              finish({ ok: false, rows: [], packets, reason: error?.message || String(error) });
-            }
-          })
-        : null;
-
       let directScanJson = null;
-      // Prefer the known Excel contract when it produced matches. On a cold
-      // runner, the preceding mover subscription establishes the shared
-      // SignalR connection; if the static service still cannot respond, keep
-      // the established mover result rather than discarding it.
-      const staticExcelHighRoeUsable = staticExcelHighRoe?.ok && staticExcelHighRoe.rows.length > 0;
-      const subscriptionResult = staticExcelHighRoeUsable ? staticExcelHighRoe : viaMarketMovers;
-      if (!subscriptionResult?.ok && filters?.toScanJson && scanning?.subscribe) {
+      if (!viaMarketMovers.ok && filters?.toScanJson && scanning?.subscribe) {
         try {
           directScanJson = await filters.toScanJson(mover.config, undefined, `brief-direct-${mover.id}`);
         } catch (error) {
@@ -779,14 +604,12 @@ async function collectScansWithPage(page, timing = {}) {
       }
 
       const finalOutput = {
-        ok: subscriptionResult?.ok === true,
+        ok: viaMarketMovers.ok,
         scan: scanName,
         limit,
         extractedAt: new Date().toISOString(),
         durationMs: Date.now() - startedAt,
-        source: staticExcelHighRoeUsable
-          ? "scanningService.subscribe: Excel High RoE preset"
-          : subscriptionResult?.method || "Focus Angular services",
+        source: viaMarketMovers.method || "Focus Angular services",
         sort: marketCapOutputOrderScans.includes(scanName)
           ? { source: "marketCap", direction: "Descending" }
           : { source: "Focus preset order" },
@@ -796,22 +619,16 @@ async function collectScansWithPage(page, timing = {}) {
           number: platformLimit?.number ?? null,
           property: platformLimit?.property?.key ?? null
         },
-        results: subscriptionResult?.ok ? await buildPublishedResults(subscriptionResult.rows || []) : []
+        results: viaMarketMovers.ok ? await buildPublishedResults(viaMarketMovers.rows || []) : []
       };
 
       if (debugOutput) {
         finalOutput.diagnostics = {
           ...diagnostics,
           directScanJson: jsonSafe(directScanJson),
-          staticExcelHighRoe: staticExcelHighRoe && {
-            ok: staticExcelHighRoe.ok,
-            reason: staticExcelHighRoe.reason,
-            eventCount: staticExcelHighRoe.packets.length,
-            resultCodes: staticExcelHighRoe.rows.map((row) => row.code)
-          },
-          subscriptionResult: subscriptionResult?.ok ? {
-            eventCount: subscriptionResult.eventCount ?? subscriptionResult.packets?.length ?? 0
-          } : subscriptionResult
+          subscriptionResult: viaMarketMovers.ok ? {
+            eventCount: viaMarketMovers.eventCount
+          } : viaMarketMovers
         };
       }
 
@@ -823,7 +640,6 @@ async function collectScansWithPage(page, timing = {}) {
       universeLimit: 500,
       marketCapTop500Scans: Array.from(MARKET_CAP_TOP_500_SCANS),
       marketCapOutputOrderScans: Array.from(MARKET_CAP_OUTPUT_ORDER_SCANS),
-      retryEmptyCompletionScans: Array.from(RETRY_EMPTY_COMPLETION_SCANS),
       debugOutput: DEBUG_OUTPUT,
       sparklineMaxPoints: SPARKLINE_MAX_POINTS
     });
