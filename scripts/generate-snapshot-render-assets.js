@@ -59,10 +59,35 @@ function sparkline(data) {
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Price sparkline" style="display:block"><line x1="${p}" y1="${openY.toFixed(1)}" x2="${w-p}" y2="${openY.toFixed(1)}" stroke="#aab5bf" stroke-width="1" stroke-dasharray="3 3"/>${paths}</svg>`;
 }
 
+function darkModeAssets() {
+  return `<style>
+html.dark,html.dark body{background:#19181d!important;color:#f5f6f7!important}
+html.dark [bgcolor="#ffffff"],html.dark [style*="background:#ffffff"],html.dark [style*="background:#fff"]{background:#19181d!important}
+html.dark [bgcolor="#f1f5f8"],html.dark [style*="background:#f1f5f8"]{background:#000!important}
+html.dark [bgcolor="#e7e9ec"],html.dark [style*="background:#e7e9ec"]{background:#28272d!important}
+html.dark [style*="background:rgba(255,255,255,.64)"]{background:rgba(25,24,29,.78)!important}
+html.dark [style*="border-bottom:1px solid #edf1f5"]{border-bottom-color:#3c3b42!important}
+html.dark [style*="border:1px solid #fff"],html.dark [style*="border:1px solid rgba(255,255,255,.72)"]{border-color:#000!important}
+html.dark [style*="border:1px solid #111111"]{border-color:#f5f6f7!important}
+html.dark [style*="color:#17212b"],html.dark [style*="color:#111b24"],html.dark [style*="color:#263442"],html.dark [style*="color:#1e2a36"]{color:#f5f6f7!important}
+html.dark [style*="color:#5d6b78"],html.dark [style*="color:#667481"],html.dark [style*="color:#697784"],html.dark [style*="color:#52616e"],html.dark [style*="color:#7d8893"],html.dark [style*="color:#5f6f82"]{color:#c2c7cd!important}
+html.dark [style*="color:#174889"]{color:#8ec2ff!important}
+html.dark [style*="color:#137a4b"],html.dark [style*="color:#138756"],html.dark [style*="color:#158b5b"]{color:#47bd86!important}
+html.dark [style*="color:#c23a31"],html.dark [style*="color:#c8463a"],html.dark [style*="color:#d34e41"]{color:#ff745f!important}
+html.dark [style*="background:#3EAA77"],html.dark [style*="background:#7FC0A1"],html.dark [style*="background:#BDDACB"],html.dark [style*="background:#C8DDD2"],html.dark [style*="background:#D2DDD7"]{background:#47bd86!important}
+html.dark [style*="background:#FF745F"],html.dark [style*="background:#F3A093"],html.dark [style*="background:#F7B3A8"],html.dark [style*="background:#F3BCB3"],html.dark [style*="background:#E9CEC9"]{background:#ff745f!important}
+html.dark [style*="background:#E0E0E0"]{background:#3c3b42!important}
+html.dark [style*="stroke:#aab5bf"]{stroke:#777d86!important}
+html.dark [stroke="#138756"]{stroke:#47bd86!important}
+html.dark [stroke="#c8463a"]{stroke:#ff745f!important}
+html.dark [stroke="#e3ebf5"]{stroke:#3c3b42!important}
+</style><script>(function(){var q=window.location.search.toLowerCase(),h=window.location.hash.toLowerCase();if(/(^|[?&])(dark|theme=dark)(?:[=&]|$)/.test(q)||h==='#dark'){document.documentElement.className+=' dark';}}());</script>`;
+}
+
 function shell(title, body, aspect) {
   const height = aspect === "1:1" ? 1200 : 675;
   const footer = scanFooter(read("manifest.json").generatedAt);
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head><body bgcolor="#ffffff" style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#17212b"><table role="presentation" width="1200" height="${height}" border="0" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:1200px;height:${height}px;border-collapse:collapse;background:#ffffff"><tr><td valign="top" style="padding:0;background:#ffffff" bgcolor="#ffffff">${body}${footer}</td></tr></table></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>${darkModeAssets()}</head><body bgcolor="#ffffff" style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#17212b"><table role="presentation" width="1200" height="${height}" border="0" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:1200px;height:${height}px;border-collapse:collapse;background:#ffffff"><tr><td valign="top" style="padding:0;background:#ffffff" bgcolor="#ffffff">${body}${footer}</td></tr></table></body></html>`;
 }
 function sectionTitle(title, subtitle = "") { return `<h3 style="margin:0;color:#111b24;font-size:18px;line-height:24px;font-weight:700">${esc(title)}</h3>${subtitle ? `<p style="margin:2px 0 7px;color:#667481;font-size:15px;line-height:20px;font-weight:400">${esc(subtitle)}</p>` : `<div style="height:7px;line-height:7px">&nbsp;</div>`}`; }
 
@@ -145,7 +170,7 @@ function socialMountain(candles) {
   return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Five day area chart" style="display:block;width:100%;height:100%"><defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#226acb" stop-opacity=".46"/><stop offset="100%" stop-color="#226acb" stop-opacity=".03"/></linearGradient></defs>${grid}<polygon points="${area}" fill="url(#chartFill)"/><polyline points="${line}" fill="none" stroke="#226acb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${x(last, points.length - 1).toFixed(2)}" cy="${y(last).toFixed(2)}" r="6" fill="#226acb"/>${labels}</svg>`;
 }
 function benchmarkChartShell(title, body) {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head><body style="width:1200px;margin:0;background:#fff;color:#17212b;font-family:Arial,Helvetica,sans-serif"><main style="box-sizing:border-box;width:1200px;height:675px;background:#fff;padding:0">${body}</main>${scanFooter(read("manifest.json").generatedAt)}</body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>${darkModeAssets()}</head><body style="width:1200px;margin:0;background:#fff;color:#17212b;font-family:Arial,Helvetica,sans-serif"><main style="box-sizing:border-box;width:1200px;height:675px;background:#fff;padding:0">${body}</main>${scanFooter(read("manifest.json").generatedAt)}</body></html>`;
 }
 function benchmarkPanel(symbol, data) {
   const candles = data?.candles5m5d?.candles || [], quote = data?.quote, change = quote?.change, changeClass = movement(change) === "up" ? "#158b5b" : movement(change) === "down" ? "#d34e41" : "#667481";

@@ -50,7 +50,8 @@
     "partner:generate-email": "node scripts/generate-partner-pack-email.js",
     "partner:generate-pack": "node scripts/generate-partner-scan-images.js --upload && node scripts/generate-partner-pack-email.js && node scripts/create-partner-pack-activecampaign-draft.js",
     "partner:create-ac-draft": "node scripts/create-partner-pack-activecampaign-draft.js",
-    "social:generate-images": "node scripts/generate-social-market-images.js"
+    "social:generate-images": "node scripts/generate-social-market-images.js",
+    "snapshot:render-assets": "node scripts/generate-snapshot-render-assets.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
