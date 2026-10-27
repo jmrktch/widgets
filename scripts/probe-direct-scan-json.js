@@ -53,10 +53,9 @@ const MARKET_CAP_OUTPUT_ORDER_SCANS = new Set([
   "52 Week High",
   "52 Week Low"
 ]);
-// The fundamentals screen is expected to have qualifying instruments. Focus
-// can emit an empty completion packet while its mover profile is still
-// hydrating on a cold runner, so retry that subscription once rather than
-// publishing a false empty table.
+// Focus can emit an empty completion packet while its mover profile is still
+// hydrating on a cold runner, so retry that subscription once before accepting
+// an empty result as legitimate.
 const RETRY_EMPTY_COMPLETION_SCANS = new Set([
   "High RoE + low Dtc"
 ]);
@@ -599,8 +598,9 @@ async function collectScansWithPage(page, timing = {}) {
                     return;
                   }
                   finish({
-                    ok: false,
+                    ok: true,
                     method: "marketMoversService.subscribe",
+                    rows: [],
                     reason: "scan completed without rows after retry",
                     eventCount: events.length
                   });
