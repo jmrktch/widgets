@@ -40,6 +40,12 @@ const ALL_SCAN_NAMES = [
   "RSI Overbought",
   "High RoE + low Dtc"
 ];
+// These scans use a Top 500-by-market-cap candidate universe before Focus
+// applies its native gap ranking. All other scans retain their native target.
+const MARKET_CAP_TOP_500_SCANS = new Set([
+  "Gapped Up",
+  "Gapped Down"
+]);
 // For these lists, publish every qualifying company largest-first. This is
 // deliberately separate from the platform's native scan configuration, which
 // decides whether a company belongs in the result set.
@@ -93,7 +99,7 @@ async function collectScansWithPage(page, timing = {}) {
     for (const scanName of scanNames) {
       console.log(`[scan] ${scanName}`);
 
-      const output = await page.evaluate(async ({ scanName, limit, scanFetchLimit, marketCapOutputOrderScans, debugOutput, sparklineMaxPoints }) => {
+      const output = await page.evaluate(async ({ scanName, limit, scanFetchLimit, universeLimit, marketCapTop500Scans, marketCapOutputOrderScans, debugOutput, sparklineMaxPoints }) => {
       const startedAt = Date.now();
 
       function clean(value) {
@@ -488,10 +494,23 @@ async function collectScansWithPage(page, timing = {}) {
         throw new Error(`Scan not found after waiting for saved movers: ${scanName}. Available: ${available}`);
       }
 
-      // Preserve Focus's native Scan Management target/limit configuration.
+      // Gapped scans use an explicit Top 500-by-market-cap candidate universe.
       // Market-cap sorting of published 52-week results happens after the scan
       // has returned all qualifying contracts.
-      const platformLimit = mover.config?.scanTargets?.limit;
+      let platformLimit = mover.config?.scanTargets?.limit;
+      const useMarketCapTop500 = marketCapTop500Scans.includes(scanName);
+      if (useMarketCapTop500) {
+        if (platformLimit?.property?.key !== "marketCap") {
+          throw new Error(`Focus preset ${scanName} has no platform market-cap universe limit.`);
+        }
+        const scanConfig = window._?.cloneDeep
+          ? window._.cloneDeep(mover.config)
+          : structuredClone(mover.config);
+        platformLimit = scanConfig.scanTargets.limit;
+        platformLimit.direction = "Descending";
+        platformLimit.number = universeLimit;
+        mms.updateConfig(mover.id, scanConfig, true, true);
+      }
 
       const diagnostics = {
         mover: jsonSafe({
@@ -593,7 +612,7 @@ async function collectScansWithPage(page, timing = {}) {
           ? { source: "marketCap", direction: "Descending" }
           : { source: "Focus preset order" },
         platformTarget: {
-          source: "native Focus Scan Management preset",
+          source: useMarketCapTop500 ? "collector override via Focus Scan Management" : "native Focus Scan Management preset",
           direction: platformLimit?.direction ?? null,
           number: platformLimit?.number ?? null,
           property: platformLimit?.property?.key ?? null
@@ -616,6 +635,8 @@ async function collectScansWithPage(page, timing = {}) {
       scanName,
       limit: scanLimit,
       scanFetchLimit: Math.max(scanLimit * 6, 30),
+      universeLimit: 500,
+      marketCapTop500Scans: Array.from(MARKET_CAP_TOP_500_SCANS),
       marketCapOutputOrderScans: Array.from(MARKET_CAP_OUTPUT_ORDER_SCANS),
       debugOutput: DEBUG_OUTPUT,
       sparklineMaxPoints: SPARKLINE_MAX_POINTS
