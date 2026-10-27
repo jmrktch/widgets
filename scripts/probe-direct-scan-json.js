@@ -532,8 +532,12 @@ async function collectScansWithPage(page, timing = {}) {
         }
       };
 
+      // Excel defines this built-in preset as a complete scanning contract.
+      // Subscribing to that contract avoids the profile/mover resolution layer
+      // that intermittently completes empty on fresh hosted Focus sessions.
+      const useStaticExcelHighRoe = clean(scanName).toLowerCase() === "high roe + low dtc" && Boolean(scanning?.subscribe);
       const events = [];
-      const viaMarketMovers = await new Promise((resolve) => {
+      const viaMarketMovers = !useStaticExcelHighRoe ? await new Promise((resolve) => {
         let sub = null;
         let settled = false;
         let quietTimer = null;
@@ -618,10 +622,150 @@ async function collectScansWithPage(page, timing = {}) {
           }
         };
         startSubscription();
-      });
+      }) : null;
+
+      // Excel ships this preset as a plain scanning contract, rather than a
+      // named Focus mover. Use it directly to avoid preset-profile hydration.
+      const staticExcelHighRoe = useStaticExcelHighRoe
+        ? await new Promise((resolve) => {
+            const config = {
+              contracts: {
+                subscan: {
+                  contracts: {
+                    filter: {
+                      matchMode: "And",
+                      filters: [{
+                        terms: ["CHIA", "XASX", "XNEC"].map((text) => ({ text, fields: "Exchange", emptyTextMatchesAll: false })),
+                        matchMode: "Or"
+                      }]
+                    },
+                    keys: null
+                  },
+                  condition: {
+                    $type: "Analytics.ScalarCondition",
+                    left: { $type: "Analytics.Fundamentals.MarketCapitalisationProperty", metadataKey: "bigDollarValue" },
+                    operator: "GreaterThanOrEqualTo",
+                    right: { $type: "Analytics.DecimalProperty", value: 0 }
+                  },
+                  rank: {
+                    property: { $type: "Analytics.Fundamentals.MarketCapitalisationProperty", metadataKey: "bigDollarValue" },
+                    direction: "Descending",
+                    next: {}
+                  },
+                  limit: 500
+                }
+              },
+              condition: {
+                $type: "Analytics.LogicalAndGroupCondition",
+                group: [
+                  {
+                    $type: "Analytics.ScalarCondition",
+                    left: { $type: "Analytics.Fundamentals.ReturnOnEquityProperty", metadataKey: "decPercValue" },
+                    operator: "GreaterThan",
+                    right: { $type: "Analytics.DecimalProperty", Value: 0.1 }
+                  },
+                  {
+                    $type: "Analytics.ScalarCondition",
+                    left: { $type: "Analytics.Fundamentals.DebtToCapitalRatioProperty", metadataKey: "decPercValue" },
+                    operator: "LessThan",
+                    right: { $type: "Analytics.DecimalProperty", Value: 0.7 }
+                  }
+                ]
+              },
+              rank: {
+                direction: "Descending",
+                property: {
+                  $type: "Analytics.Candles.ChangePercentageCandleProperty",
+                  metadataKey: "percValue",
+                  Interval: { Basis: "Day", Amount: 1 },
+                  Range: 2,
+                  Offset: 0,
+                  FirstProperty: "Close",
+                  SecondProperty: "Close"
+                },
+                next: {},
+                metadataCollectionMode: "None"
+              },
+              limit: 15,
+              options: {
+                TradingHoursReset: true,
+                ForceUpdatePropagation: true,
+                AdditionalMetadata: [
+                  {
+                    $type: "Analytics.Candles.CloseCandleProperty",
+                    metadataKey: "slot0_priceValue",
+                    Interval: { Basis: "Day", Amount: 1 },
+                    Offset: 0
+                  },
+                  {
+                    $type: "Analytics.Candles.ChangePercentageCandleProperty",
+                    metadataKey: "slot1_percValue",
+                    Interval: { Basis: "Day", Amount: 1 },
+                    Range: 2,
+                    Offset: 0,
+                    FirstProperty: "Close",
+                    SecondProperty: "Close"
+                  }
+                ],
+                ScanMode: "InitialMatchesAndUpdates"
+              }
+            };
+            let sub = null;
+            let settled = false;
+            let quietTimer = null;
+            const packets = [];
+            const rowsById = new Map();
+            let bestRows = [];
+            const finish = (result) => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timeout);
+              clearTimeout(quietTimer);
+              sub?.dispose?.();
+              sub?.unsubscribe?.();
+              resolve(result);
+            };
+            const timeout = setTimeout(() => finish({ ok: bestRows.length > 0, rows: bestRows, packets, reason: "timeout" }), 8_000);
+            try {
+              sub = scanning.subscribe(config.contracts, config.condition, config.rank, config.limit, config.options, true).subscribe(
+                (packet) => {
+                  packets.push(jsonSafe(packet));
+                  const rows = parseStreamPacket(packet, config.limit);
+                  if (packet?.Errors?.length) return finish({ ok: false, rows: bestRows, packets, reason: "scan errors" });
+                  if (rows.length) {
+                    // The raw scanning stream delivers incremental changes;
+                    // unlike marketMoversService it does not maintain the
+                    // result-list cache for us. Preserve each match by its
+                    // stable contract ID before comparing the final table.
+                    rows.forEach((row) => rowsById.set(row.id || row.code, row));
+                    bestRows = Array.from(rowsById.values())
+                      .sort((left, right) => {
+                        // Excel's High RoE preset ranks by one-day percentage
+                        // change. Raw updates arrive out of order, so use the
+                        // rank metadata rather than packet arrival order.
+                        const leftRank = Number(left.scanMetric ?? left.changePercent);
+                        const rightRank = Number(right.scanMetric ?? right.changePercent);
+                        return (Number.isFinite(rightRank) ? rightRank : -Infinity) - (Number.isFinite(leftRank) ? leftRank : -Infinity);
+                      })
+                      .slice(0, config.limit);
+                    clearTimeout(quietTimer);
+                    quietTimer = setTimeout(() => finish({ ok: true, rows: bestRows, packets, reason: "quiet period" }), 1_200);
+                  }
+                  if (packet?.progress === true || packet?.progress === 100) {
+                    finish({ ok: true, rows: bestRows, packets, reason: "completed" });
+                  }
+                },
+                (error) => finish({ ok: false, rows: bestRows, packets, reason: error?.message || String(error) })
+              );
+            } catch (error) {
+              finish({ ok: false, rows: [], packets, reason: error?.message || String(error) });
+            }
+          })
+        : null;
 
       let directScanJson = null;
-      if (!viaMarketMovers.ok && filters?.toScanJson && scanning?.subscribe) {
+      const subscriptionResult = staticExcelHighRoe || viaMarketMovers;
+      if (!subscriptionResult?.ok && filters?.toScanJson && scanning?.subscribe) {
         try {
           directScanJson = await filters.toScanJson(mover.config, undefined, `brief-direct-${mover.id}`);
         } catch (error) {
@@ -630,12 +774,14 @@ async function collectScansWithPage(page, timing = {}) {
       }
 
       const finalOutput = {
-        ok: viaMarketMovers.ok,
+        ok: subscriptionResult?.ok === true,
         scan: scanName,
         limit,
         extractedAt: new Date().toISOString(),
         durationMs: Date.now() - startedAt,
-        source: viaMarketMovers.method || "Focus Angular services",
+        source: useStaticExcelHighRoe
+          ? "scanningService.subscribe: Excel High RoE preset"
+          : subscriptionResult?.method || "Focus Angular services",
         sort: marketCapOutputOrderScans.includes(scanName)
           ? { source: "marketCap", direction: "Descending" }
           : { source: "Focus preset order" },
@@ -645,16 +791,22 @@ async function collectScansWithPage(page, timing = {}) {
           number: platformLimit?.number ?? null,
           property: platformLimit?.property?.key ?? null
         },
-        results: viaMarketMovers.ok ? await buildPublishedResults(viaMarketMovers.rows || []) : []
+        results: subscriptionResult?.ok ? await buildPublishedResults(subscriptionResult.rows || []) : []
       };
 
       if (debugOutput) {
         finalOutput.diagnostics = {
           ...diagnostics,
           directScanJson: jsonSafe(directScanJson),
-          subscriptionResult: viaMarketMovers.ok ? {
-            eventCount: viaMarketMovers.eventCount
-          } : viaMarketMovers
+          staticExcelHighRoe: staticExcelHighRoe && {
+            ok: staticExcelHighRoe.ok,
+            reason: staticExcelHighRoe.reason,
+            eventCount: staticExcelHighRoe.packets.length,
+            resultCodes: staticExcelHighRoe.rows.map((row) => row.code)
+          },
+          subscriptionResult: subscriptionResult?.ok ? {
+            eventCount: subscriptionResult.eventCount ?? subscriptionResult.packets?.length ?? 0
+          } : subscriptionResult
         };
       }
 
