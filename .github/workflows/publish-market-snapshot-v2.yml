@@ -71,6 +71,12 @@ jobs:
           SNAPSHOT_RENDER_OUTPUT_DIR: site/snapshot-renders/latest
         run: node scripts/generate-snapshot-render-assets.js
 
+      - name: Capture light and dark partner JPEGs
+        env:
+          SNAPSHOT_RENDER_IMAGE_SOURCE_DIR: site/snapshot-renders/latest
+          SNAPSHOT_RENDER_IMAGE_OUTPUT_DIR: site/snapshot-renders/latest/images
+        run: node scripts/capture-snapshot-render-images.js
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
