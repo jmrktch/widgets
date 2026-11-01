@@ -11,7 +11,9 @@ concurrency:
 
 jobs:
   refresh-cookie:
-    runs-on: ubuntu-latest
+    # Keep this cookie-refresh browser job on the Playwright-supported image,
+    # rather than inheriting future ubuntu-latest migrations.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout repository

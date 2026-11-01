@@ -15,7 +15,10 @@ permissions:
 
 jobs:
   collect-and-publish:
-    runs-on: ubuntu-latest
+    # Playwright's bundled Chromium currently supports Ubuntu 24.04 but not
+    # the Ubuntu 26.04 image behind ubuntu-latest. Pin the runner so a future
+    # latest-image migration cannot stop scheduled snapshots at npm ci.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       # GitHub-hosted runners are disposable. Keep Playwright's browser outside
@@ -38,7 +41,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /home/runner/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-chromium-${{ hashFiles('package-lock.json') }}
+          key: ubuntu-24.04-${{ runner.arch }}-playwright-chromium-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
         env:
