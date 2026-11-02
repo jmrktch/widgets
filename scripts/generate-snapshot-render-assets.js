@@ -43,7 +43,7 @@ function dividendAmount(value) { const n = num(value); return n === null ? MISSI
 function franking(value) { const n = num(value); return n === null ? MISSING : `${(Math.abs(n) <= 1 ? n * 100 : n).toFixed(0)}%`; }
 function items(section) { return Array.isArray(section?.results) ? section.results : Array.isArray(section?.items) ? section.items : []; }
 
-function sparkline(data) {
+function sparkline(data, attributes = "") {
   const values = [data?.open, ...(Array.isArray(data?.series) ? data.series : [])].map(num).filter((n) => n !== null);
   if (values.length < 2) return `<span style="color:#8895a3">${MISSING}</span>`;
   const min = Math.min(...values), max = Math.max(...values), range = max - min || 1, w = 92, h = 30, p = 2;
@@ -55,7 +55,7 @@ function sparkline(data) {
     const a = points[i - 1], b = points[i]; const color = b.v >= open ? "#138756" : "#c8463a";
     paths += `<path d="M${a.x.toFixed(1)} ${a.y.toFixed(1)} L${b.x.toFixed(1)} ${b.y.toFixed(1)}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`;
   }
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Price sparkline" style="display:block"><line x1="${p}" y1="${openY.toFixed(1)}" x2="${w-p}" y2="${openY.toFixed(1)}" stroke="#aab5bf" stroke-width="1" stroke-dasharray="3 3"/>${paths}</svg>`;
+  return `<svg class="snapshot-sparkline" ${attributes} width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Price sparkline" style="display:block"><line x1="${p}" y1="${openY.toFixed(1)}" x2="${w-p}" y2="${openY.toFixed(1)}" stroke="#aab5bf" stroke-width="1" stroke-dasharray="3 3"/>${paths}</svg>`;
 }
 
 function darkModeAssets() {
@@ -106,7 +106,7 @@ function scanFooter(generatedAt) {
 }
 
 function scanPanel(key, scan) {
-  const rows = items(scan).slice(0, 5).map((r) => { const cls = movement(r.changePercent); return `<tr>${td(`<strong>${esc(r.code)}</strong>`)}${td(esc(r.name), cls)}${td(sparkline(r.dailySparkline))}${td(esc(price(r.last)), `num ${cls}`)}${td(esc(signed(r.change)), `num ${cls}`)}${td(esc(pct(r.changePercent)), `num ${cls}`)}${td(esc(money(r.marketCap)), "num")}</tr>`; });
+  const rows = items(scan).slice(0, 5).map((r) => { const cls = movement(r.changePercent); const sparklineIdentity = `data-scan="${esc(key)}" data-symbol="${esc(String(r.code || "").toUpperCase())}"`; return `<tr>${td(`<strong>${esc(r.code)}</strong>`)}${td(esc(r.name), cls)}${td(sparkline(r.dailySparkline, sparklineIdentity))}${td(esc(price(r.last)), `num ${cls}`)}${td(esc(signed(r.change)), `num ${cls}`)}${td(esc(pct(r.changePercent)), `num ${cls}`)}${td(esc(money(r.marketCap)), "num")}</tr>`; });
   return shell(SCAN_TITLES[key], `${sectionTitle(SCAN_TITLES[key], SCAN_SUBTITLES[key])}${table(["Code", "Name", "Daily", "Last", "Chg", "Chg %", "Market Cap"], rows, "<col width=\"56\"><col><col width=\"116\"><col width=\"74\"><col width=\"74\"><col width=\"80\"><col width=\"104\">")}`, "1:1", true, 675);
 }
 function dividendsPanel(data) {
@@ -155,7 +155,7 @@ function heatmapPanel(data) {
   const blocks = rows.map((row, rowIndex) => { const rowWeight = row.reduce((sum, sector) => sum + sector.weight, 0), rowHeight = treemapHeight * (rowWeight / totalWeight), widths = weightedWidths(row, rowIndex === 0 ? 34 : rowIndex === 1 ? 15 : 12); const sectorHtml = row.map((sector, sectorIndex) => { const sectorWidth = widths[sectorIndex], tiles = splitTreemap(sector.stocks.slice(0, 34), 0, 0, 100, 100, false).map((stock) => { const text = heatmapTextSize(stock.width, stock.height, sectorWidth, rowHeight), label = text.show ? `<strong style="display:block;color:#111b24;font-size:${text.fontSize}px;line-height:${Math.max(text.fontSize + 1, 14)}px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(stock.code)}</strong>${text.showPercent ? `<em style="display:block;color:#111b24;font-size:${Math.min(13, Math.max(text.fontSize - 2, 12))}px;line-height:${Math.max(text.fontSize - 1, 13)}px;font-style:normal;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pct(stock.changePercent))}</em>` : ""}` : ""; return `<span style="position:absolute;box-sizing:border-box;left:${stock.x.toFixed(3)}%;top:${stock.y.toFixed(3)}%;width:${stock.width.toFixed(3)}%;height:${stock.height.toFixed(3)}%;border:1px solid rgba(255,255,255,.72);padding:0;overflow:hidden;background:${heatColor(stock.changePercent)}"><span style="display:table;width:100%;height:100%"><span style="display:table-cell;vertical-align:middle;text-align:center;padding:3px">${label}</span></span></span>`; }).join(""); return `<td valign="top" style="width:${sectorWidth.toFixed(3)}%;height:${rowHeight.toFixed(0)}px;border:1px solid #fff;vertical-align:top"><div style="position:relative;width:100%;height:${rowHeight.toFixed(0)}px;overflow:hidden"><div style="position:absolute;top:4px;left:4px;z-index:3;max-width:90%;padding:2px 4px;background:rgba(255,255,255,.64);color:#111b24;font-size:15px;line-height:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(sector.name)}</div>${tiles}</div></td>`; }).join(""); return `<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;height:${rowHeight.toFixed(0)}px;border-collapse:collapse;table-layout:fixed"><tr>${sectorHtml}</tr></table>`; }).join("");
   const arrow = a200Change > 0 ? "▲" : a200Change < 0 ? "▼" : "";
   const header = `<div style="margin:0 0 7px;text-align:center"><div style="display:inline-block;margin:0 0 3px;padding:2px 6px;color:#17212b;font-size:17px;line-height:23px;font-weight:700;border:1px solid #111111">A200, Solactive Australia 200 Index</div><div style="color:${changeColor};font-size:15px;line-height:20px;font-weight:400">${esc(price(a200Price))}&nbsp;&nbsp;${arrow ? `${arrow} ` : ""}${esc(signed(a200Change))}&nbsp;&nbsp;${esc(pct(a200Quote.changePercent))}</div></div>`;
-  return shell("Australian Top 200 Heatmap", `${header}${sectionTitle("Australian Top 200 Heatmap")}<div style="font-size:0;line-height:0;overflow:hidden">${blocks || `<div style="padding:30px;color:#7b8793;font-size:12px;line-height:17px">No heatmap data.</div>`}</div>`, "1:1");
+  return shell("Australian Top 200 Heatmap", `${header}${sectionTitle("Australian Top 200 Heatmap")}<div class="snapshot-heatmap-tiles" style="font-size:0;line-height:0;overflow:hidden">${blocks || `<div style="padding:30px;color:#7b8793;font-size:12px;line-height:17px">No heatmap data.</div>`}</div>`, "1:1");
 }
 function socialDate(value) { const d = new Date(value); return Number.isNaN(d) ? "" : new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", day: "2-digit", month: "short" }).format(d); }
 function socialMountain(candles) {

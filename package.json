@@ -52,7 +52,8 @@
     "partner:create-ac-draft": "node scripts/create-partner-pack-activecampaign-draft.js",
     "social:generate-images": "node scripts/generate-social-market-images.js",
     "snapshot:render-assets": "node scripts/generate-snapshot-render-assets.js",
-    "snapshot:capture-render-images": "node scripts/capture-snapshot-render-images.js"
+    "snapshot:capture-render-images": "node scripts/capture-snapshot-render-images.js",
+    "newsletter:capture-assets": "node scripts/capture-newsletter-email-assets.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
