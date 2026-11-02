@@ -1,7 +1,7 @@
 /*
  * Captures every generated snapshot-render HTML panel as a public JPEG.
- * Scan and benchmark panels use 1920x1080; all other panels use 1080x1080.
- * Each panel is captured in the generated page's light and dark themes.
+ * Each panel is captured directly from its generated DOM in light and dark
+ * themes, at four times its CSS-pixel resolution.
  */
 const fs = require("fs");
 const path = require("path");
@@ -14,9 +14,8 @@ const OUTPUT = path.resolve(ROOT, process.env.SNAPSHOT_RENDER_IMAGE_OUTPUT_DIR |
 const LIGHT = { name: "light", query: "" };
 const DARK = { name: "dark", query: "theme=dark" };
 const THEMES = [LIGHT, DARK];
-const WIDESCREEN = { name: "16:9", width: 1920, height: 1080, topPadding: 40, sidePadding: 72 };
-const SQUARE = { name: "1:1", width: 1080, height: 1080, topPadding: 40, sidePadding: 48 };
-const DIVIDENDS_SQUARE = { name: "1:1", width: 1200, height: 1200, topPadding: 40, sidePadding: 48 };
+const RASTER_SCALE = 4;
+const MAX_PANEL_SIZE = 1200;
 
 function relative(file) {
   return path.relative(INPUT, file).replace(/\\/g, "/");
@@ -32,63 +31,29 @@ function listHtml(directory) {
     .sort((left, right) => relative(left).localeCompare(relative(right)));
 }
 
-function formatFor(file) {
-  const source = relative(file);
-  if (source === "dividends.html") return DIVIDENDS_SQUARE;
-  const firstDirectory = source.split("/")[0];
-  return SQUARE;
-}
-
 function imageTarget(file, theme) {
   const relativeImage = relative(file).replace(/\.html$/i, ".jpg");
   return path.join(OUTPUT, theme.name, relativeImage);
 }
 
-async function prepareCanvas(page, format) {
-  return page.evaluate(({ width, height, topPadding, sidePadding }) => {
-    const contentNodes = Array.from(document.body.childNodes);
-    const bounds = Array.from(document.body.children).map((element) => element.getBoundingClientRect());
-    const sourceLeft = Math.min(...bounds.map((bound) => bound.left));
-    const sourceTop = Math.min(...bounds.map((bound) => bound.top));
-    const sourceRight = Math.max(...bounds.map((bound) => bound.right));
-    const sourceBottom = Math.max(...bounds.map((bound) => bound.bottom));
-    // Snapshot panels have a fixed 1200px content width. Measuring the
-    // document's scroll width instead would capture the empty viewport around
-    // that panel, rather than the panel itself.
-    const sourceWidth = Math.ceil(sourceRight - sourceLeft);
-    const sourceHeight = Math.ceil(sourceBottom - sourceTop);
-    const canvasBackground = getComputedStyle(document.body).backgroundColor || "#ffffff";
-    const availableWidth = width - sidePadding * 2;
-    const availableHeight = height - topPadding;
-    const scale = Math.min(availableWidth / sourceWidth, availableHeight / sourceHeight);
-
-    const stage = document.createElement("div");
-    stage.id = "snapshot-jpeg-stage";
-    contentNodes.forEach((node) => stage.appendChild(node));
-    document.body.appendChild(stage);
-
-    const style = document.createElement("style");
-    style.textContent = `
-      html,body{width:${width}px!important;height:${height}px!important;min-width:0!important;margin:0!important;overflow:hidden!important;background:${canvasBackground}!important}
-      body{position:relative!important}
-      #snapshot-jpeg-stage{position:absolute;top:${topPadding}px;left:50%;width:${sourceWidth}px;height:${sourceHeight}px;transform:translateX(-50%) scale(${scale});transform-origin:top center}
-    `;
-    document.head.appendChild(style);
-
-    return { sourceWidth, sourceHeight, scale };
-  }, format);
-}
-
-async function capture(page, file, theme, format) {
+async function capture(page, file, theme) {
   const url = pathToFileURL(file);
   if (theme.query) url.search = theme.query;
   await page.goto(url.toString(), { waitUntil: "load" });
   await page.waitForTimeout(100);
-  const layout = await prepareCanvas(page, format);
+  const panel = page.locator("body > *").first();
+  const box = await panel.boundingBox();
+  if (!box || box.width <= 0 || box.height <= 0) throw new Error(`Could not measure rendered panel: ${relative(file)}`);
   const output = imageTarget(file, theme);
   fs.mkdirSync(path.dirname(output), { recursive: true });
-  await page.screenshot({ path: output, type: "jpeg", quality: 92, animations: "disabled" });
-  return { file: path.relative(ROOT, output).replace(/\\/g, "/"), layout };
+  await panel.screenshot({ path: output, type: "jpeg", quality: 92, animations: "disabled" });
+  const sourceWidth = Math.round(box.width), sourceHeight = Math.round(box.height);
+  return {
+    file: path.relative(ROOT, output).replace(/\\/g, "/"),
+    layout: { sourceWidth, sourceHeight, scale: RASTER_SCALE },
+    width: sourceWidth * RASTER_SCALE,
+    height: sourceHeight * RASTER_SCALE
+  };
 }
 
 async function main() {
@@ -104,13 +69,12 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const assets = [];
   try {
-    const page = await browser.newPage({ viewport: { width: WIDESCREEN.width, height: WIDESCREEN.height }, deviceScaleFactor: 1 });
+    const page = await browser.newPage({ viewport: { width: MAX_PANEL_SIZE, height: MAX_PANEL_SIZE }, deviceScaleFactor: RASTER_SCALE });
     for (const file of pages) {
-      const format = formatFor(file);
-      await page.setViewportSize({ width: format.width, height: format.height });
       const variants = [];
-      for (const theme of THEMES) variants.push({ theme: theme.name, ...(await capture(page, file, theme, format)) });
-      assets.push({ source: relative(file), ratio: format.name, width: format.width, height: format.height, variants });
+      for (const theme of THEMES) variants.push({ theme: theme.name, ...(await capture(page, file, theme)) });
+      const { layout, width, height } = variants[0];
+      assets.push({ source: relative(file), ratio: layout.sourceWidth === layout.sourceHeight ? "1:1" : "source", width, height, variants });
     }
   } finally {
     await browser.close();
@@ -123,6 +87,7 @@ async function main() {
     sourceGeneratedAt: sourceManifest?.sourceGeneratedAt || null,
     format: "jpeg",
     quality: 92,
+    rasterScale: RASTER_SCALE,
     themes: THEMES.map((theme) => theme.name),
     output: path.relative(ROOT, OUTPUT).replace(/\\/g, "/"),
     assets
