@@ -111,7 +111,7 @@ function scanPanel(key, scan) {
 }
 function dividendsPanel(data) {
   const rows = items(data).slice(0, 10).map((r) => { const cls = movement(r.changePercent); return `<tr>${td(`<strong>${esc(r.code)}</strong>`)}${td(esc(r.name), cls)}${td(sparkline(r.dailySparkline))}${td(esc(date(r.exDate)))}${td(esc(date(r.paymentDate)))}${td(esc(dividendAmount(r.amount)), "num")}${td(esc(price(r.rate)), "num")}${td(esc(franking(r.franking)), "num")}${td(esc(r.type || MISSING))}</tr>`; });
-  return shell("Upcoming Dividends", `${sectionTitle("Upcoming Dividends", "Large AU stock dividends with an ex-date in the next 14 days.")}${table(["Code", "Name", "52 weeks", "Ex-date", "Pay date", "Amt", "Rate", "Frank", "Type"], rows, "<col width=\"56\"><col><col width=\"116\"><col width=\"88\"><col width=\"88\"><col width=\"66\"><col width=\"66\"><col width=\"66\"><col width=\"66\">")}`, "16:9");
+  return shell("Upcoming Dividends", `${sectionTitle("Upcoming Dividends", "Large AU stock dividends with an ex-date in the next 14 days.")}${table(["Code", "Name", "52 weeks", "Ex-date", "Pay date", "Amt", "Rate", "Frank", "Type"], rows, "<col width=\"56\"><col><col width=\"116\"><col width=\"88\"><col width=\"88\"><col width=\"66\"><col width=\"66\"><col width=\"66\"><col width=\"66\">")}`, "1:1");
 }
 function raiseAsk(r) { if (r.ask) return r.ask; const amount = num(r.raiseAmount ?? r.amount ?? r.totalRaise); const offer = num(r.offerPrice ?? r.price ?? r.issuePrice); return [amount !== null ? `Raising ${money(amount)}` : "", offer !== null ? `@ ${price(offer)}` : ""].filter(Boolean).join(" ") || r.description || MISSING; }
 function raisesPanel(data) {

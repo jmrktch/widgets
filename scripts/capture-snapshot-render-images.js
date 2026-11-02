@@ -16,6 +16,7 @@ const DARK = { name: "dark", query: "theme=dark" };
 const THEMES = [LIGHT, DARK];
 const WIDESCREEN = { name: "16:9", width: 1920, height: 1080, topPadding: 40, sidePadding: 72 };
 const SQUARE = { name: "1:1", width: 1080, height: 1080, topPadding: 40, sidePadding: 48 };
+const DIVIDENDS_SQUARE = { name: "1:1", width: 1200, height: 1200, topPadding: 40, sidePadding: 48 };
 
 function relative(file) {
   return path.relative(INPUT, file).replace(/\\/g, "/");
@@ -32,7 +33,9 @@ function listHtml(directory) {
 }
 
 function formatFor(file) {
-  const firstDirectory = relative(file).split("/")[0];
+  const source = relative(file);
+  if (source === "dividends.html") return DIVIDENDS_SQUARE;
+  const firstDirectory = source.split("/")[0];
   return firstDirectory === "scans" || firstDirectory === "benchmarks" ? WIDESCREEN : SQUARE;
 }
 
