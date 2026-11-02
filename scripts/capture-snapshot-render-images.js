@@ -36,7 +36,7 @@ function formatFor(file) {
   const source = relative(file);
   if (source === "dividends.html") return DIVIDENDS_SQUARE;
   const firstDirectory = source.split("/")[0];
-  return firstDirectory === "scans" || firstDirectory === "benchmarks" ? WIDESCREEN : SQUARE;
+  return firstDirectory === "scans" ? WIDESCREEN : SQUARE;
 }
 
 function imageTarget(file, theme) {
