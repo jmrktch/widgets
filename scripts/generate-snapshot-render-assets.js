@@ -107,7 +107,7 @@ function scanFooter(generatedAt) {
 
 function scanPanel(key, scan) {
   const rows = items(scan).slice(0, 5).map((r) => { const cls = movement(r.changePercent); return `<tr>${td(`<strong>${esc(r.code)}</strong>`)}${td(esc(r.name), cls)}${td(sparkline(r.dailySparkline))}${td(esc(price(r.last)), `num ${cls}`)}${td(esc(signed(r.change)), `num ${cls}`)}${td(esc(pct(r.changePercent)), `num ${cls}`)}${td(esc(money(r.marketCap)), "num")}</tr>`; });
-  return shell(SCAN_TITLES[key], `${sectionTitle(SCAN_TITLES[key], SCAN_SUBTITLES[key])}${table(["Code", "Name", "Daily", "Last", "Chg", "Chg %", "Market Cap"], rows, "<col width=\"56\"><col><col width=\"116\"><col width=\"74\"><col width=\"74\"><col width=\"80\"><col width=\"104\">")}`, "16:9");
+  return shell(SCAN_TITLES[key], `${sectionTitle(SCAN_TITLES[key], SCAN_SUBTITLES[key])}${table(["Code", "Name", "Daily", "Last", "Chg", "Chg %", "Market Cap"], rows, "<col width=\"56\"><col><col width=\"116\"><col width=\"74\"><col width=\"74\"><col width=\"80\"><col width=\"104\">")}`, "1:1", true, 675);
 }
 function dividendsPanel(data) {
   const rows = items(data).slice(0, 10).map((r) => { const cls = movement(r.changePercent); return `<tr>${td(`<strong>${esc(r.code)}</strong>`)}${td(esc(r.name), cls)}${td(sparkline(r.dailySparkline))}${td(esc(date(r.exDate)))}${td(esc(date(r.paymentDate)))}${td(esc(dividendAmount(r.amount)), "num")}${td(esc(price(r.rate)), "num")}${td(esc(franking(r.franking)), "num")}${td(esc(r.type || MISSING))}</tr>`; });
