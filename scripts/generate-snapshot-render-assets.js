@@ -83,13 +83,13 @@ html.dark [stroke="#e3ebf5"]{stroke:#3c3b42!important}
 </style><script>(function(){var q=window.location.search.toLowerCase(),h=window.location.hash.toLowerCase();if(/(^|[?&])(dark|theme=dark)(?:[=&]|$)/.test(q)||h==='#dark'){document.documentElement.className+=' dark';}}());</script>`;
 }
 
-function shell(title, body, aspect) {
+function shell(title, body, aspect, includeFooter = true) {
   const height = aspect === "1:1" ? 1200 : 675;
-  const footer = scanFooter(read("manifest.json").generatedAt);
+  const footer = includeFooter ? `<div style="flex:0 0 auto">${scanFooter(read("manifest.json").generatedAt)}</div>` : "";
   // The footer belongs to the fixed canvas rather than immediately after its
   // content. This keeps the disclaimer at the bottom of every rendered page
   // while allowing the panel above it to use the remaining vertical space.
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>${darkModeAssets()}</head><body bgcolor="#ffffff" style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#17212b"><div style="box-sizing:border-box;width:1200px;height:${height}px;display:flex;flex-direction:column;background:#ffffff"><div style="box-sizing:border-box;flex:1 1 auto;min-height:0;padding:10px">${body}</div><div style="flex:0 0 auto">${footer}</div></div></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>${darkModeAssets()}</head><body bgcolor="#ffffff" style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#17212b"><div style="box-sizing:border-box;width:1200px;height:${height}px;display:flex;flex-direction:column;background:#ffffff"><div style="box-sizing:border-box;flex:1 1 auto;min-height:0;padding:10px">${body}</div>${footer}</div></body></html>`;
 }
 function sectionTitle(title, subtitle = "") { return `<h3 style="margin:0;color:#111b24;font-size:18px;line-height:24px;font-weight:700">${esc(title)}</h3>${subtitle ? `<p style="margin:2px 0 7px;color:#667481;font-size:15px;line-height:20px;font-weight:400">${esc(subtitle)}</p>` : `<div style="height:7px;line-height:7px">&nbsp;</div>`}`; }
 
@@ -189,7 +189,7 @@ function main() {
   write("dividends.html", dividendsPanel(read("content/dividends.json"))); write("raises.html", raisesPanel(read("content/raises.json"))); write("media.html", mediaPanel(read("content/media.json"))); write("heatmap.html", heatmapPanel(read("content/heatmap.json")));
   for (const symbol of BENCHMARKS) { write(`benchmarks/${symbol}.html`, benchmarkPanel(symbol, read(`benchmarks/${symbol}.json`))); }
   const list = [["Australian Top 200 Heatmap", "heatmap.html"], ["Media Snapshot", "media.html"], ["Upcoming Dividends", "dividends.html"], ["Current Capital Raises", "raises.html"], ...links, ...BENCHMARKS.map((symbol) => [`${symbol} Benchmark`, `benchmarks/${symbol}.html`])].map(([name, href]) => `<li style="margin:10px 0"><a href="${href}" style="color:#174889;font-size:17px;text-decoration:none;font-weight:700">${esc(name)}</a></li>`).join("");
-  write("index.html", shell("Focus Snapshot Renders", `<ul style="margin:0;padding-left:22px">${list}</ul>`, "16:9"));
+  write("index.html", shell("Focus Snapshot Renders", `<ul style="margin:0;padding-left:22px">${list}</ul>`, "16:9", false));
   write("manifest.json", `${JSON.stringify({ generatedAt: new Date().toISOString(), sourceGeneratedAt: manifest.generatedAt || null, output: path.relative(ROOT, OUTPUT).replace(/\\/g, "/"), files: 1 + SCANS.length + BENCHMARKS.length + 4 }, null, 2)}\n`);
   console.log(JSON.stringify({ ok: true, output: path.relative(ROOT, OUTPUT).replace(/\\/g, "/"), panels: SCANS.length + BENCHMARKS.length + 4 }, null, 2));
 }
