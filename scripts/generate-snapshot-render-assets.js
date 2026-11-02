@@ -83,13 +83,13 @@ html.dark [stroke="#e3ebf5"]{stroke:#3c3b42!important}
 </style><script>(function(){var q=window.location.search.toLowerCase(),h=window.location.hash.toLowerCase();if(/(^|[?&])(dark|theme=dark)(?:[=&]|$)/.test(q)||h==='#dark'){document.documentElement.className+=' dark';}}());</script>`;
 }
 
-function shell(title, body, aspect, includeFooter = true) {
-  const height = aspect === "1:1" ? 1200 : 675;
+function shell(title, body, aspect, includeFooter = true, size = 1200) {
+  const height = aspect === "1:1" ? size : 675;
   const footer = includeFooter ? `<div style="flex:0 0 auto">${scanFooter(read("manifest.json").generatedAt)}</div>` : "";
   // The footer belongs to the fixed canvas rather than immediately after its
   // content. This keeps the disclaimer at the bottom of every rendered page
   // while allowing the panel above it to use the remaining vertical space.
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>${darkModeAssets()}</head><body bgcolor="#ffffff" style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#17212b"><div style="box-sizing:border-box;width:1200px;height:${height}px;display:flex;flex-direction:column;background:#ffffff"><div style="box-sizing:border-box;flex:1 1 auto;min-height:0;padding:10px">${body}</div>${footer}</div></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>${darkModeAssets()}</head><body bgcolor="#ffffff" style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#17212b"><div style="box-sizing:border-box;width:${size}px;height:${height}px;display:flex;flex-direction:column;background:#ffffff"><div style="box-sizing:border-box;flex:1 1 auto;min-height:0;padding:10px">${body}</div>${footer}</div></body></html>`;
 }
 function sectionTitle(title, subtitle = "") { return `<h3 style="margin:0;color:#111b24;font-size:18px;line-height:24px;font-weight:700">${esc(title)}</h3>${subtitle ? `<p style="margin:2px 0 7px;color:#667481;font-size:15px;line-height:20px;font-weight:400">${esc(subtitle)}</p>` : `<div style="height:7px;line-height:7px">&nbsp;</div>`}`; }
 
@@ -111,7 +111,7 @@ function scanPanel(key, scan) {
 }
 function dividendsPanel(data) {
   const rows = items(data).slice(0, 10).map((r) => { const cls = movement(r.changePercent); return `<tr>${td(`<strong>${esc(r.code)}</strong>`)}${td(esc(r.name), cls)}${td(sparkline(r.dailySparkline))}${td(esc(date(r.exDate)))}${td(esc(date(r.paymentDate)))}${td(esc(dividendAmount(r.amount)), "num")}${td(esc(price(r.rate)), "num")}${td(esc(franking(r.franking)), "num")}${td(esc(r.type || MISSING))}</tr>`; });
-  return shell("Upcoming Dividends", `${sectionTitle("Upcoming Dividends", "Large AU stock dividends with an ex-date in the next 14 days.")}${table(["Code", "Name", "52 weeks", "Ex-date", "Pay date", "Amt", "Rate", "Frank", "Type"], rows, "<col width=\"56\"><col><col width=\"116\"><col width=\"88\"><col width=\"88\"><col width=\"66\"><col width=\"66\"><col width=\"66\"><col width=\"66\">")}`, "1:1");
+  return shell("Upcoming Dividends", `${sectionTitle("Upcoming Dividends", "Large AU stock dividends with an ex-date in the next 14 days.")}${table(["Code", "Name", "52 weeks", "Ex-date", "Pay date", "Amt", "Rate", "Frank", "Type"], rows, "<col width=\"56\"><col><col width=\"116\"><col width=\"88\"><col width=\"88\"><col width=\"66\"><col width=\"66\"><col width=\"66\"><col width=\"66\">")}`, "1:1", true, 900);
 }
 function raiseAsk(r) { if (r.ask) return r.ask; const amount = num(r.raiseAmount ?? r.amount ?? r.totalRaise); const offer = num(r.offerPrice ?? r.price ?? r.issuePrice); return [amount !== null ? `Raising ${money(amount)}` : "", offer !== null ? `@ ${price(offer)}` : ""].filter(Boolean).join(" ") || r.description || MISSING; }
 function raisesPanel(data) {
