@@ -15,6 +15,7 @@ const LIGHT = { name: "light", query: "" };
 const DARK = { name: "dark", query: "theme=dark" };
 const THEMES = [LIGHT, DARK];
 const RASTER_SCALE = 4;
+const LARGE_PANEL_RASTER_SCALE = 3;
 const MAX_PANEL_SIZE = 1200;
 
 function relative(file) {
@@ -36,7 +37,12 @@ function imageTarget(file, theme) {
   return path.join(OUTPUT, theme.name, relativeImage);
 }
 
-async function capture(page, file, theme) {
+function rasterScaleFor(file) {
+  const source = relative(file);
+  return source === "dividends.html" || source === "heatmap.html" ? LARGE_PANEL_RASTER_SCALE : RASTER_SCALE;
+}
+
+async function capture(page, file, theme, rasterScale) {
   const url = pathToFileURL(file);
   if (theme.query) url.search = theme.query;
   await page.goto(url.toString(), { waitUntil: "load" });
@@ -50,9 +56,9 @@ async function capture(page, file, theme) {
   const sourceWidth = Math.round(box.width), sourceHeight = Math.round(box.height);
   return {
     file: path.relative(ROOT, output).replace(/\\/g, "/"),
-    layout: { sourceWidth, sourceHeight, scale: RASTER_SCALE },
-    width: sourceWidth * RASTER_SCALE,
-    height: sourceHeight * RASTER_SCALE
+    layout: { sourceWidth, sourceHeight, scale: rasterScale },
+    width: sourceWidth * rasterScale,
+    height: sourceHeight * rasterScale
   };
 }
 
@@ -68,15 +74,24 @@ async function main() {
 
   const browser = await chromium.launch({ headless: true });
   const assets = [];
+  const contexts = new Map();
   try {
-    const page = await browser.newPage({ viewport: { width: MAX_PANEL_SIZE, height: MAX_PANEL_SIZE }, deviceScaleFactor: RASTER_SCALE });
     for (const file of pages) {
+      const rasterScale = rasterScaleFor(file);
+      let context = contexts.get(rasterScale);
+      if (!context) {
+        context = await browser.newContext({ viewport: { width: MAX_PANEL_SIZE, height: MAX_PANEL_SIZE }, deviceScaleFactor: rasterScale });
+        contexts.set(rasterScale, context);
+      }
+      const page = await context.newPage();
       const variants = [];
-      for (const theme of THEMES) variants.push({ theme: theme.name, ...(await capture(page, file, theme)) });
+      for (const theme of THEMES) variants.push({ theme: theme.name, ...(await capture(page, file, theme, rasterScale)) });
+      await page.close();
       const { layout, width, height } = variants[0];
       assets.push({ source: relative(file), ratio: layout.sourceWidth === layout.sourceHeight ? "1:1" : "source", width, height, variants });
     }
   } finally {
+    await Promise.all([...contexts.values()].map((context) => context.close()));
     await browser.close();
   }
 
@@ -87,7 +102,7 @@ async function main() {
     sourceGeneratedAt: sourceManifest?.sourceGeneratedAt || null,
     format: "jpeg",
     quality: 92,
-    rasterScale: RASTER_SCALE,
+    rasterScale: { default: RASTER_SCALE, dividends: LARGE_PANEL_RASTER_SCALE, heatmap: LARGE_PANEL_RASTER_SCALE },
     themes: THEMES.map((theme) => theme.name),
     output: path.relative(ROOT, OUTPUT).replace(/\\/g, "/"),
     assets
