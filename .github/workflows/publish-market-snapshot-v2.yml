@@ -3,6 +3,12 @@ name: Publish Market Snapshot
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - docs/media-partner-data-guide.html
+      - .github/workflows/publish-market-snapshot-v2.yml
 
 concurrency:
   group: publish-market-snapshot
