@@ -3,7 +3,7 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-21",
   "triggers": {
-    "crons": ["*/20 * * * *"]
+    "crons": ["*/20 * * * *", "10 0 * * *", "10 23 * * *"]
   },
   "observability": {
     "enabled": true,

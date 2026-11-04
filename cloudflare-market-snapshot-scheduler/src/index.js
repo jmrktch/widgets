@@ -1,6 +1,8 @@
 const SYDNEY_TIME_ZONE = "Australia/Sydney";
-const WORKFLOW_DISPATCH_URL =
+const SNAPSHOT_WORKFLOW_DISPATCH_URL =
   "https://api.github.com/repos/jmrktch/widgets/actions/workflows/391299788/dispatches";
+const NEWSLETTER_WORKFLOW_DISPATCH_URL =
+  "https://api.github.com/repos/jmrktch/newsletter/actions/workflows/404133176/dispatches";
 
 function sydneyScheduleParts(timestamp) {
   const values = new Intl.DateTimeFormat("en-AU", {
@@ -33,14 +35,21 @@ function isMarketSlot(timestamp) {
   return localHour >= 10 && localHour <= 16 && [0, 20, 40].includes(localMinute);
 }
 
-async function dispatchWorkflow(env, attempt = 1) {
-  const response = await fetch(WORKFLOW_DISPATCH_URL, {
+function isNewsletterSlot(timestamp) {
+  const { weekday, hour, minute } = sydneyScheduleParts(timestamp);
+  return new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]).has(weekday)
+    && Number(hour) === 10
+    && Number(minute) === 10;
+}
+
+async function dispatchWorkflow(env, { url, name }, attempt = 1) {
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       "Content-Type": "application/json",
-      "User-Agent": "marketech-focus-snapshot-scheduler",
+      "User-Agent": "marketech-focus-scheduler",
       "X-GitHub-Api-Version": "2022-11-28",
     },
     body: JSON.stringify({ ref: "master" }),
@@ -54,7 +63,7 @@ async function dispatchWorkflow(env, attempt = 1) {
   // duplicate collections after a successful dispatch.
   if (attempt === 1 && (response.status === 429 || response.status >= 500)) {
     await new Promise((resolve) => setTimeout(resolve, 1_000));
-    return dispatchWorkflow(env, 2);
+    return dispatchWorkflow(env, { url, name }, 2);
   }
 
   // GitHub error payloads are small, structured diagnostics. Record a bounded
@@ -62,7 +71,7 @@ async function dispatchWorkflow(env, attempt = 1) {
   // failures without ever logging the secret itself.
   const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 500);
   throw new Error(
-    `GitHub workflow dispatch failed with HTTP ${response.status}: ${detail}`,
+    `${name} workflow dispatch failed with HTTP ${response.status}: ${detail}`,
   );
 }
 
@@ -71,18 +80,25 @@ export default {
     const scheduledTime = controller.scheduledTime;
     const slot = sydneyScheduleParts(scheduledTime);
 
-    if (!isMarketSlot(scheduledTime)) {
+    const workflow = isMarketSlot(scheduledTime)
+      ? { name: "market snapshot", url: SNAPSHOT_WORKFLOW_DISPATCH_URL }
+      : isNewsletterSlot(scheduledTime)
+        ? { name: "newsletter", url: NEWSLETTER_WORKFLOW_DISPATCH_URL }
+        : null;
+
+    if (!workflow) {
       console.log(JSON.stringify({ event: "skipped", scheduledTime, slot }));
       return;
     }
 
     try {
-      await dispatchWorkflow(env);
-      console.log(JSON.stringify({ event: "dispatched", scheduledTime, slot }));
+      await dispatchWorkflow(env, workflow);
+      console.log(JSON.stringify({ event: "dispatched", workflow: workflow.name, scheduledTime, slot }));
     } catch (error) {
       console.error(
         JSON.stringify({
           event: "dispatch_failed",
+          workflow: workflow.name,
           scheduledTime,
           slot,
           error: error instanceof Error ? error.message : String(error),
