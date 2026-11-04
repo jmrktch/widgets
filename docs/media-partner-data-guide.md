@@ -17,7 +17,7 @@ Each snapshot includes a timestamped manifest. Read this first to confirm the sn
 ## How it works
 
 1. A scheduled collector refreshes the market snapshot from Marketech Focus.
-2. It publishes self-contained JSON resources for the supplied Australian Top 200 universe, market content and scans.
+2. It publishes self-contained JSON resources for the supplied Australian Top 200 universe, selected market content and scans.
 3. The same snapshot generates clean, fixed-format HTML panels and JPEG derivatives in light and dark variants.
 4. GitHub Pages serves the latest version at stable URLs. Consumers should always use the `latest` path, rather than cache a particular run.
 
@@ -34,7 +34,6 @@ All JSON feed URLs begin with `snapshot/latest/`.
 | Individual stocks | `tickers/{SYMBOL}.json` | One file per available stock, for example `tickers/BHP.json` or `tickers/CBA.json`. Includes quote, 5-minute/five-day candles and contract/company metadata. |
 | Benchmarks | `benchmarks/{SYMBOL}.json` | Quote and 5-minute/five-day candles for `GOLD`, `AU1YY`, `US1YY`, `OOO` and `A200`. An unavailable instrument is represented explicitly rather than omitted. |
 | Heatmap data | `content/heatmap.json` | Top-200 stock/sector model, weighted by market capitalisation and coloured by daily move. `scans/heatmap.json` is also available as the underlying scan-style heatmap resource. |
-| Media | `content/media.json` | Current media items. |
 | Dividends | `content/dividends.json` | Upcoming dividends, currently collected for the next 14 days. |
 | Capital raises | `content/raises.json` | Current capital-raise items. |
 
@@ -64,7 +63,6 @@ Rendered panels live under `snapshot-renders/latest/`. They use portable HTML, i
 | Scans | `snapshot-renders/latest/scans/{SCAN}.html` |
 | Dividends | `snapshot-renders/latest/dividends.html` |
 | Capital raises | `snapshot-renders/latest/raises.html` |
-| Media | `snapshot-renders/latest/media.html` |
 | Heatmap | `snapshot-renders/latest/heatmap.html` |
 | Benchmark charts | `snapshot-renders/latest/benchmarks/{SYMBOL}.html` |
 

@@ -19,6 +19,7 @@
     code { padding:2px 5px; border-radius:3px; background:#edf2f5; color:#263442; font:13px/1.4 Consolas, "Courier New", monospace; overflow-wrap:anywhere; }
     pre { margin:12px 0; padding:14px; overflow:auto; border:1px solid var(--line); border-radius:5px; background:#111820; color:#e9f1f6; font:13px/1.5 Consolas, "Courier New", monospace; }
     a { color:var(--accent); }
+    a code { color:inherit; }
     table { width:100%; border-collapse:collapse; margin:10px 0 18px; font-size:14px; }
     th, td { padding:9px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
     th { background:var(--panel); color:#334353; font-size:12px; letter-spacing:.03em; text-transform:uppercase; }
@@ -38,69 +39,72 @@
     <h2>How it works</h2>
     <ol>
       <li>A market snapshot refreshes during the Australian market session at an approximately 20-minute cadence.</li>
-      <li>It publishes self-contained JSON resources for the supplied Australian Top 200 universe, market content and scans.</li>
+      <li>It publishes self-contained JSON resources for the supplied Australian Top 200 universe, selected market content and scans.</li>
       <li>The same snapshot creates portable HTML panels and high-resolution JPEGs in light and dark variants.</li>
       <li>Use the stable <code>latest</code> URLs below and check the snapshot manifest for freshness before use.</li>
     </ol>
     <p>For internal Excel access and live-feed viewing, Microsoft Edge is the recommended browser for the Excel web-data workflow.</p>
 
     <h2>JSON feeds</h2>
-    <p>Base URL: <code>https://jmrktch.github.io/widgets/snapshot/latest/</code></p>
+    <p>Base URL: <a href="https://jmrktch.github.io/widgets/snapshot/latest/" target="_blank" rel="noopener noreferrer"><code>https://jmrktch.github.io/widgets/snapshot/latest/</code></a></p>
     <table>
       <thead><tr><th>Category</th><th>Path</th><th>Contents</th></tr></thead>
       <tbody>
-        <tr><td>Snapshot status</td><td><code>manifest.json</code></td><td>Generation time, market timezone, cadence, universe metadata and dataset health.</td></tr>
-        <tr><td>Stock universe</td><td><code>universe.json</code></td><td>Supplied Australian Top 200 symbols, published symbols and unavailable symbols.</td></tr>
-        <tr><td>Individual stocks</td><td><code>tickers/{SYMBOL}.json</code></td><td>For example <code>tickers/BHP.json</code>. Quote, five-minute/five-day candles and contract/company metadata.</td></tr>
-        <tr><td>Benchmarks</td><td><code>benchmarks/{SYMBOL}.json</code></td><td><code>GOLD</code>, <code>AU1YY</code>, <code>US1YY</code>, <code>OOO</code> and <code>A200</code> quotes and candles.</td></tr>
-        <tr><td>Heatmap</td><td><code>content/heatmap.json</code></td><td>Top-200 stock/sector model, weighted by market capitalisation and coloured by daily move.</td></tr>
-        <tr><td>Content</td><td><code>content/media.json</code>, <code>content/dividends.json</code>, <code>content/raises.json</code></td><td>Current media, next-14-day dividends and capital raises.</td></tr>
+        <tr><td>Snapshot status</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/manifest.json" target="_blank" rel="noopener noreferrer"><code>manifest.json</code></a></td><td>Generation time, market timezone, cadence, universe metadata and dataset health.</td></tr>
+        <tr><td>Stock universe</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/universe.json" target="_blank" rel="noopener noreferrer"><code>universe.json</code></a></td><td>Supplied Australian Top 200 symbols, published symbols and unavailable symbols.</td></tr>
+        <tr><td>Individual stocks</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/tickers/BHP.json" target="_blank" rel="noopener noreferrer"><code>tickers/BHP.json</code></a></td><td>Example resource; replace <code>BHP</code> with an available symbol. Includes quote, five-minute/five-day candles and contract/company metadata.</td></tr>
+        <tr><td>Benchmarks</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/benchmarks/A200.json" target="_blank" rel="noopener noreferrer"><code>benchmarks/A200.json</code></a></td><td>Example resource; also available for <a href="https://jmrktch.github.io/widgets/snapshot/latest/benchmarks/GOLD.json" target="_blank" rel="noopener noreferrer"><code>GOLD</code></a>, <a href="https://jmrktch.github.io/widgets/snapshot/latest/benchmarks/AU1YY.json" target="_blank" rel="noopener noreferrer"><code>AU1YY</code></a>, <a href="https://jmrktch.github.io/widgets/snapshot/latest/benchmarks/US1YY.json" target="_blank" rel="noopener noreferrer"><code>US1YY</code></a> and <a href="https://jmrktch.github.io/widgets/snapshot/latest/benchmarks/OOO.json" target="_blank" rel="noopener noreferrer"><code>OOO</code></a>.</td></tr>
+        <tr><td>Heatmap</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/content/heatmap.json" target="_blank" rel="noopener noreferrer"><code>content/heatmap.json</code></a></td><td>Top-200 stock/sector model, weighted by market capitalisation and coloured by daily move.</td></tr>
+        <tr><td>Dividends</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/content/dividends.json" target="_blank" rel="noopener noreferrer"><code>content/dividends.json</code></a></td><td>Upcoming large-AU-stock dividends for the next 14 days.</td></tr>
+        <tr><td>Capital raises</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/content/raises.json" target="_blank" rel="noopener noreferrer"><code>content/raises.json</code></a></td><td>Current capital-raise items.</td></tr>
       </tbody>
     </table>
 
     <h3>Scan feeds</h3>
-    <p>All scans sit under <code>scans/</code>:</p>
+    <p>All scans sit under <a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/" target="_blank" rel="noopener noreferrer"><code>scans/</code></a>:</p>
     <table>
       <thead><tr><th>Scan</th><th>File</th></tr></thead>
       <tbody>
-        <tr><td>Top Gainers</td><td><code>top-gainers.json</code></td></tr>
-        <tr><td>Top Losers</td><td><code>top-losers.json</code></td></tr>
-        <tr><td>Gapped Up</td><td><code>gapped-up.json</code></td></tr>
-        <tr><td>Gapped Down</td><td><code>gapped-down.json</code></td></tr>
-        <tr><td>Trading Halts</td><td><code>trading-halt.json</code></td></tr>
-        <tr><td>52-Week Highs</td><td><code>52-week-high.json</code></td></tr>
-        <tr><td>52-Week Lows</td><td><code>52-week-low.json</code></td></tr>
-        <tr><td>RSI Oversold</td><td><code>rsi-oversold.json</code></td></tr>
-        <tr><td>RSI Overbought</td><td><code>rsi-overbought.json</code></td></tr>
-        <tr><td>Heatmap source</td><td><code>heatmap.json</code></td></tr>
+        <tr><td>Top Gainers</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/top-gainers.json" target="_blank" rel="noopener noreferrer"><code>top-gainers.json</code></a></td></tr>
+        <tr><td>Top Losers</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/top-losers.json" target="_blank" rel="noopener noreferrer"><code>top-losers.json</code></a></td></tr>
+        <tr><td>Gapped Up</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/gapped-up.json" target="_blank" rel="noopener noreferrer"><code>gapped-up.json</code></a></td></tr>
+        <tr><td>Gapped Down</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/gapped-down.json" target="_blank" rel="noopener noreferrer"><code>gapped-down.json</code></a></td></tr>
+        <tr><td>Trading Halts</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/trading-halt.json" target="_blank" rel="noopener noreferrer"><code>trading-halt.json</code></a></td></tr>
+        <tr><td>52-Week Highs</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/52-week-high.json" target="_blank" rel="noopener noreferrer"><code>52-week-high.json</code></a></td></tr>
+        <tr><td>52-Week Lows</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/52-week-low.json" target="_blank" rel="noopener noreferrer"><code>52-week-low.json</code></a></td></tr>
+        <tr><td>RSI Oversold</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/rsi-oversold.json" target="_blank" rel="noopener noreferrer"><code>rsi-oversold.json</code></a></td></tr>
+        <tr><td>RSI Overbought</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/rsi-overbought.json" target="_blank" rel="noopener noreferrer"><code>rsi-overbought.json</code></a></td></tr>
+        <tr><td>Heatmap source</td><td><a href="https://jmrktch.github.io/widgets/snapshot/latest/scans/heatmap.json" target="_blank" rel="noopener noreferrer"><code>heatmap.json</code></a></td></tr>
       </tbody>
     </table>
 
     <h2>Rendered HTML panels</h2>
-    <p>Base URL: <code>https://jmrktch.github.io/widgets/snapshot-renders/latest/</code></p>
+    <p>Base URL: <a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/" target="_blank" rel="noopener noreferrer"><code>https://jmrktch.github.io/widgets/snapshot-renders/latest/</code></a></p>
     <table>
       <thead><tr><th>Panel</th><th>URL pattern</th></tr></thead>
       <tbody>
-        <tr><td>Panel index</td><td><code>snapshot-renders/latest/</code></td></tr>
-        <tr><td>Scans</td><td><code>snapshot-renders/latest/scans/{SCAN}.html</code></td></tr>
-        <tr><td>Dividends, raises, media</td><td><code>snapshot-renders/latest/dividends.html</code>, <code>raises.html</code>, <code>media.html</code></td></tr>
-        <tr><td>Heatmap</td><td><code>snapshot-renders/latest/heatmap.html</code></td></tr>
-        <tr><td>Benchmark charts</td><td><code>snapshot-renders/latest/benchmarks/{SYMBOL}.html</code></td></tr>
+        <tr><td>Panel index</td><td><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/" target="_blank" rel="noopener noreferrer"><code>snapshot-renders/latest/</code></a></td></tr>
+        <tr><td>Scans</td><td><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/scans/top-gainers.html" target="_blank" rel="noopener noreferrer"><code>scans/top-gainers.html</code></a> (replace the scan name as required)</td></tr>
+        <tr><td>Dividends and raises</td><td><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/dividends.html" target="_blank" rel="noopener noreferrer"><code>dividends.html</code></a>, <a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/raises.html" target="_blank" rel="noopener noreferrer"><code>raises.html</code></a></td></tr>
+        <tr><td>Heatmap</td><td><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/heatmap.html" target="_blank" rel="noopener noreferrer"><code>heatmap.html</code></a></td></tr>
+        <tr><td>Benchmark charts</td><td><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/benchmarks/A200.html" target="_blank" rel="noopener noreferrer"><code>benchmarks/A200.html</code></a> (replace <code>A200</code> with a benchmark symbol)</td></tr>
       </tbody>
     </table>
     <p>Panels use portable HTML, inline styling and SVG charts/sparklines. Standard tables are 1200 × 675, the heatmap is 1200 × 1200, and benchmark charts are 850 × 850. Each includes the Marketech Focus CTA and data disclaimer.</p>
 
     <h3>Light and dark HTML</h3>
     <p>Light is the default. Add <code>?dark</code>, <code>?theme=dark</code> or <code>#dark</code> to switch themes.</p>
-    <pre>https://jmrktch.github.io/widgets/snapshot-renders/latest/scans/top-gainers.html
-https://jmrktch.github.io/widgets/snapshot-renders/latest/scans/top-gainers.html?theme=dark</pre>
+    <p><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/scans/top-gainers.html" target="_blank" rel="noopener noreferrer"><code>Light: top-gainers.html</code></a><br>
+    <a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/scans/top-gainers.html?theme=dark" target="_blank" rel="noopener noreferrer"><code>Dark: top-gainers.html?theme=dark</code></a></p>
 
     <h2>JPEG image assets</h2>
-    <p>Every panel is captured as a high-resolution JPEG in both themes. The asset manifest is <code>snapshot-renders/latest/images/manifest.json</code>.</p>
-    <pre>https://jmrktch.github.io/widgets/snapshot-renders/latest/images/light/scans/top-gainers.jpg
-https://jmrktch.github.io/widgets/snapshot-renders/latest/images/dark/scans/top-gainers.jpg
-https://jmrktch.github.io/widgets/snapshot-renders/latest/images/light/heatmap.jpg
-https://jmrktch.github.io/widgets/snapshot-renders/latest/images/dark/benchmarks/A200.jpg</pre>
+    <p>Every panel is captured as a high-resolution JPEG in both themes. The asset manifest is <a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/images/manifest.json" target="_blank" rel="noopener noreferrer"><code>images/manifest.json</code></a>.</p>
+    <ul>
+      <li><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/images/light/scans/top-gainers.jpg" target="_blank" rel="noopener noreferrer"><code>Light top gainers JPEG</code></a></li>
+      <li><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/images/dark/scans/top-gainers.jpg" target="_blank" rel="noopener noreferrer"><code>Dark top gainers JPEG</code></a></li>
+      <li><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/images/light/heatmap.jpg" target="_blank" rel="noopener noreferrer"><code>Light heatmap JPEG</code></a></li>
+      <li><a href="https://jmrktch.github.io/widgets/snapshot-renders/latest/images/dark/benchmarks/A200.jpg" target="_blank" rel="noopener noreferrer"><code>Dark A200 chart JPEG</code></a></li>
+    </ul>
 
     <h2>Beta notes</h2>
     <ul>
