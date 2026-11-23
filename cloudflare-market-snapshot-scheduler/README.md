@@ -1,7 +1,7 @@
 # Marketech Focus snapshot scheduler
 
 This free Cloudflare Worker replaces the unreliable GitHub Actions `schedule`
-event. It runs every 10 minutes in UTC, then checks the scheduled instant in
+event. It runs every 20 minutes in UTC, then checks the scheduled instant in
 `Australia/Sydney` so AEST/AEDT is handled automatically.
 
 It dispatches the GitHub Actions collector only at these Sydney weekday slots:
@@ -10,8 +10,8 @@ It dispatches the GitHub Actions collector only at these Sydney weekday slots:
 - 10:00 through 16:40 at `:00`, `:20`, and `:40`
 
 It also dispatches the `jmrktch/newsletter` workflow once each Sydney weekday,
-at 10:10am. Two UTC cron triggers cover AEST and AEDT; the Worker only acts
-when the scheduled instant is actually 10:10am in Sydney.
+at 11:10am. Two UTC cron triggers cover AEST and AEDT; the Worker only acts
+when the scheduled instant is actually 11:10am in Sydney.
 
 ## Deployment requirements
 

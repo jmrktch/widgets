@@ -38,7 +38,7 @@ function isMarketSlot(timestamp) {
 function isNewsletterSlot(timestamp) {
   const { weekday, hour, minute } = sydneyScheduleParts(timestamp);
   return new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]).has(weekday)
-    && Number(hour) === 10
+    && Number(hour) === 11
     && Number(minute) === 10;
 }
 
