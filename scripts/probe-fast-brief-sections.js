@@ -392,7 +392,7 @@ async function main() {
 
       async function fetchMedia() {
         const mediaLimit = 3;
-        const mediaCount = Math.max(80, limit * 20);
+        const mediaCount = 80;
         const todayKey = dateKey(new Date());
         const providerPriority = [
           ["Money of Mine", ["moneyofmine", "money of mine", "mom"]],
@@ -438,16 +438,19 @@ async function main() {
         const newsFilter = { Types: ["Podcast", "Video", "Article", "Research", "Sentiment"] };
         const bodies = [
           { endpoint: "commentary/get", body: { count: mediaCount, startDate: todayKey, endDate: todayKey, filter: { Terms: commentaryTerms } } },
-          { endpoint: "commentary/get", body: { count: mediaCount, filter: { Terms: commentaryTerms } } },
-          { endpoint: "news/get", body: { count: mediaCount, startDate: todayKey, endDate: todayKey, filter: newsFilter } },
-          { endpoint: "news/get", body: { count: mediaCount, filter: newsFilter } }
+          { endpoint: "news/get", body: { count: mediaCount, startDate: todayKey, endDate: todayKey, filter: newsFilter } }
         ];
         const attempts = [];
         const payloadSources = [];
+        let stopped = null;
         for (const request of bodies) {
           const attempt = await postJson(request.endpoint, request.body).catch((error) => ({ ok: false, status: null, error: error.message || String(error), payload: null }));
           const count = mapMessages(attempt.payload).length;
           attempts.push({ endpoint: request.endpoint, body: request.body, ok: attempt.ok, status: attempt.status, count });
+          if (attempt.status === 429 || attempt.status === 503) {
+            stopped = { endpoint: request.endpoint, status: attempt.status };
+            break;
+          }
           if (attempt.ok && count) payloadSources.push({ endpoint: request.endpoint, body: request.body, payload: attempt.payload });
         }
         const providerLogos = {
@@ -565,8 +568,8 @@ async function main() {
           items.push(item);
         }
         return {
-          ok: payloadSources.length > 0 || attempts.some((attempt) => attempt.ok),
-          status: attempts.find((attempt) => attempt.ok)?.status || null,
+          ok: !stopped && attempts.some((attempt) => attempt.ok),
+          status: stopped?.status ?? attempts.find((attempt) => attempt.ok)?.status ?? null,
           extractedAt: new Date().toISOString(),
           source: payloadSources.some((source) => source.endpoint === "commentary/get") ? "commentary/get+news/get" : "news/get",
           selection: {
@@ -576,6 +579,7 @@ async function main() {
             providerPriority: providerPriority.map(([provider]) => provider)
           },
           items,
+          ...(stopped ? { stopped } : {}),
           ...(debugOutput ? { debug: { attempts, rawCount: mapped.length, todaysRawCount: todaysMapped.length, firstRaw: rawWithSource[0]?.item || null } } : {})
         };
       }
@@ -993,6 +997,10 @@ async function main() {
 
     if (!HEATMAP_ONLY) {
       writeJson(OUTPUTS.media, output.media);
+      if (output.media?.stopped) {
+        const { endpoint, status } = output.media.stopped;
+        console.warn(`[media] ${endpoint} returned HTTP ${status}; stopped media requests for this snapshot.`);
+      }
       writeJson(OUTPUTS.raises, output.raises);
       writeJson(OUTPUTS.dividends, output.dividends);
     }
